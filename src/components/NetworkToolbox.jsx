@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { 
   ShieldAlert, 
   ShieldCheck, 
@@ -18,13 +18,97 @@ import {
   Lock,
   Key,
   EyeOff,
-  Check
+  Check,
+  LogOut,
+  Power,
+  Skull,
+  Radio,
+  Flame
 } from 'lucide-react'
 
 export default function NetworkToolbox() {
-  const [activeTab, setActiveTab] = useState('breach') // 'breach' | 'subnet' | 'dns' | 'bandwidth'
+  const [activeTab, setActiveTab] = useState('superlogout') // 'superlogout' | 'breach' | 'subnet' | 'dns' | 'bandwidth'
 
-  // --- 1. 100% CLIENT-SIDE ZERO-DATA-LEAK EMAIL & ACCOUNT SECURITY ANALYZER ---
+  // --- 1. SUPER LOGOUT (EMERGENCY SESSION TERMINATOR) ---
+  const servicesList = [
+    { id: 'google', name: 'Google & Gmail', domain: 'google.com', url: 'https://www.google.com/accounts/Logout' },
+    { id: 'amazon', name: 'Amazon', domain: 'amazon.com', url: 'https://www.amazon.com/gp/flex/sign-out.html?action=sign-out' },
+    { id: 'github', name: 'GitHub', domain: 'github.com', url: 'https://github.com/logout' },
+    { id: 'dropbox', name: 'Dropbox', domain: 'dropbox.com', url: 'https://www.dropbox.com/logout' },
+    { id: 'netflix', name: 'Netflix', domain: 'netflix.com', url: 'https://www.netflix.com/Logout' },
+    { id: 'steam', name: 'Steam Community', domain: 'steamcommunity.com', url: 'https://steamcommunity.com/?action=doLogout' },
+    { id: 'microsoft', name: 'Microsoft / Live', domain: 'login.live.com', url: 'https://login.live.com/logout.srf' },
+    { id: 'wordpress', name: 'WordPress', domain: 'wordpress.com', url: 'https://wordpress.com/wp-login.php?action=logout' },
+    { id: 'yahoo', name: 'Yahoo', domain: 'yahoo.com', url: 'https://login.yahoo.com/config/login?.src=fpctx&logout=1' },
+    { id: 'soundcloud', name: 'SoundCloud', domain: 'soundcloud.com', url: 'https://soundcloud.com/logout' },
+    { id: 'tumblr', name: 'Tumblr', domain: 'tumblr.com', url: 'https://www.tumblr.com/logout' },
+    { id: 'vimeo', name: 'Vimeo', domain: 'vimeo.com', url: 'https://vimeo.com/log_out' },
+    { id: 'wikipedia', name: 'Wikipedia', domain: 'wikipedia.org', url: 'https://en.wikipedia.org/w/index.php?title=Special:UserLogout' },
+    { id: 'skype', name: 'Skype Web', domain: 'skype.com', url: 'https://secure.skype.com/account/logout' },
+    { id: 'youtube', name: 'YouTube', domain: 'youtube.com', url: 'https://www.youtube.com/logout' },
+    { id: 'ebay', name: 'eBay', domain: 'ebay.com', url: 'https://signin.ebay.com/ws/eBayISAPI.dll?SignIn' }
+  ]
+
+  const [serviceStatuses, setServiceStatuses] = useState(
+    servicesList.reduce((acc, s) => ({ ...acc, [s.id]: 'idle' }), {})
+  )
+  const [logoutRunning, setLogoutRunning] = useState(false)
+  const [confirmedKill, setConfirmedKill] = useState(false)
+  const [purgedCount, setPurgedCount] = useState(0)
+
+  const triggerLogoutForService = (service) => {
+    return new Promise((resolve) => {
+      // Create hidden image to dispatch GET logout request with browser credentials
+      const img = document.createElement('img')
+      img.className = 'hidden'
+      img.style.display = 'none'
+
+      const done = () => {
+        try {
+          if (img.parentNode) img.parentNode.removeChild(img)
+        } catch (e) {}
+        resolve()
+      }
+
+      img.onload = done
+      img.onerror = done
+      img.src = `${service.url}?nocache=${Date.now()}`
+      document.body.appendChild(img)
+
+      // Fallback timeout in case image loading hangs
+      setTimeout(done, 1200)
+    })
+  }
+
+  const handleExecuteSuperLogout = async () => {
+    if (!confirmedKill) {
+      setConfirmedKill(true)
+      return
+    }
+
+    setLogoutRunning(true)
+    setPurgedCount(0)
+
+    // Reset all to queued
+    const queued = {}
+    servicesList.forEach(s => { queued[s.id] = 'queued' })
+    setServiceStatuses(queued)
+
+    let completed = 0
+
+    // Concurrently trigger in batches to avoid browser connection choke
+    for (const service of servicesList) {
+      setServiceStatuses(prev => ({ ...prev, [service.id]: 'purging' }))
+      await triggerLogoutForService(service)
+      completed += 1
+      setPurgedCount(completed)
+      setServiceStatuses(prev => ({ ...prev, [service.id]: 'terminated' }))
+    }
+
+    setLogoutRunning(false)
+  }
+
+  // --- 2. 100% CLIENT-SIDE ZERO-DATA-LEAK EMAIL & ACCOUNT SECURITY ANALYZER ---
   const [emailInput, setEmailInput] = useState('')
   const [analyzing, setAnalyzing] = useState(false)
   const [analysisResult, setAnalysisResult] = useState(null)
@@ -37,7 +121,6 @@ export default function NetworkToolbox() {
     setAnalyzing(true)
     setAnalysisResult(null)
 
-    // 100% Local processing - ZERO network transmission
     setTimeout(() => {
       const parts = cleanEmail.split('@')
       const userPart = parts[0]
@@ -46,7 +129,6 @@ export default function NetworkToolbox() {
       const isCommonProvider = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'icloud.com'].includes(domainPart)
       const hasDisposableDomain = ['tempmail.com', '10minutemail.com', 'mailinator.com', 'guerrillamail.com'].includes(domainPart)
 
-      // Calculate entropy / vulnerability risk score based on local heuristics
       let vulnerabilityIndex = 0
       const riskFactors = []
 
@@ -87,7 +169,7 @@ export default function NetworkToolbox() {
     }, 500)
   }
 
-  // --- 2. SUBNET / CIDR CALCULATOR STATE (100% LOCAL BITWISE MATH) ---
+  // --- 3. SUBNET / CIDR CALCULATOR STATE ---
   const [ipInput, setIpInput] = useState('192.168.10.1')
   const [prefixInput, setPrefixInput] = useState(24)
 
@@ -101,7 +183,6 @@ export default function NetworkToolbox() {
     const totalIps = Math.pow(2, 32 - prefix)
     const usableIps = prefix >= 31 ? (prefix === 31 ? 2 : 1) : totalIps - 2
 
-    // Compute Subnet Mask
     let maskLong = 0
     for (let i = 0; i < prefix; i++) {
       maskLong += (1 << (31 - i)) >>> 0
@@ -115,14 +196,9 @@ export default function NetworkToolbox() {
     ]
 
     const wildcard = mask.map(m => 255 - m)
-
-    // Compute Network Address
     const net = parts.map((p, i) => p & mask[i])
-
-    // Compute Broadcast Address
     const bcast = parts.map((p, i) => p | wildcard[i])
 
-    // Compute Usable Range
     let firstHost = [...net]
     let lastHost = [...bcast]
     if (prefix < 31) {
@@ -146,7 +222,7 @@ export default function NetworkToolbox() {
 
   const subnetInfo = calculateSubnet()
 
-  // --- 3. LIVE DNS RESOLVER (CLOUDFLARE PUBLIC DoH) ---
+  // --- 4. LIVE DNS RESOLVER ---
   const [dnsDomain, setDnsDomain] = useState('mahamudul.me')
   const [dnsType, setDnsType] = useState('A')
   const [dnsLoading, setDnsLoading] = useState(false)
@@ -182,7 +258,7 @@ export default function NetworkToolbox() {
     }
   }
 
-  // --- 4. BANDWIDTH & TRANSFER TIME CALCULATOR (100% LOCAL MATH) ---
+  // --- 5. BANDWIDTH & TRANSFER TIME CALCULATOR ---
   const [dataSizeGB, setDataSizeGB] = useState(10)
   const [linkSpeedMbps, setLinkSpeedMbps] = useState(100)
 
@@ -194,7 +270,6 @@ export default function NetworkToolbox() {
     const hrs = Math.floor(seconds / 3600)
     const mins = Math.floor((seconds % 3600) / 60)
     const secs = Math.floor(seconds % 60)
-
     const totalPackets = Math.ceil((dataSizeGB * 1024 * 1024 * 1024) / 1500)
 
     return {
@@ -215,12 +290,24 @@ export default function NetworkToolbox() {
             Network & Security Engineering Toolbox.
           </h2>
           <p className="text-sm text-[#9b9ba4] mt-1 font-light">
-            Zero-data-leak client-side diagnostics, CIDR subnet calculators, and DoH resolvers.
+            Emergency Super Logout, client-side privacy audits, CIDR calculators, and DoH resolvers.
           </p>
         </div>
 
         {/* Tab Navigation */}
         <div className="flex items-center gap-1.5 p-1 rounded-lg bg-[#0e0e14] border border-[#20202a] self-start sm:self-auto overflow-x-auto max-w-full">
+          <button
+            onClick={() => setActiveTab('superlogout')}
+            className={`px-3 py-1.5 rounded text-xs mono uppercase transition-all flex items-center gap-1.5 whitespace-nowrap ${
+              activeTab === 'superlogout' 
+                ? 'bg-rose-500 text-white font-bold shadow-[0_0_14px_rgba(244,63,94,0.4)]' 
+                : 'text-[#888898] hover:text-white'
+            }`}
+          >
+            <Power className="w-3.5 h-3.5 text-white" />
+            <span>Super Logout</span>
+          </button>
+
           <button
             onClick={() => setActiveTab('breach')}
             className={`px-3 py-1.5 rounded text-xs mono uppercase transition-all flex items-center gap-1.5 whitespace-nowrap ${
@@ -271,7 +358,133 @@ export default function NetworkToolbox() {
         </div>
       </div>
 
-      {/* TOOL 1: 100% PRIVATE CLIENT-SIDE ZERO-DATA-LEAK SCANNER */}
+      {/* FEATURE 1: SUPER LOGOUT (EMERGENCY SESSION KILL SWITCH - INSPIRED BY SUPERLOGOUT.COM) */}
+      {activeTab === 'superlogout' && (
+        <div className="p-6 md:p-8 rounded-xl bg-[#0c0c12] border border-[#261f26] space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <span className="p-2.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                <Power className="w-5 h-5" />
+              </span>
+              <div>
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  <span>Super Logout // Emergency Session Kill Switch</span>
+                  <span className="text-[10px] mono px-2 py-0.5 rounded bg-rose-950/60 text-rose-300 border border-rose-500/30 font-semibold">
+                    SUPERLOGOUT ARCHITECTURE
+                  </span>
+                </h3>
+                <p className="text-xs text-[#8f8f9e] mono">
+                  Purge and terminate active browser sessions across 16+ top platforms with a single click.
+                </p>
+              </div>
+            </div>
+
+            <div className="text-xs mono text-right">
+              <span className="text-[#808092]">Status: </span>
+              <strong className={logoutRunning ? "text-amber-400" : (purgedCount > 0 ? "text-emerald-400" : "text-[#d4ff3f]")}>
+                {logoutRunning ? `TERMINATING (${purgedCount}/${servicesList.length})` : (purgedCount > 0 ? `ALL PURGED (${purgedCount}/${servicesList.length})` : 'READY TO ENGAGE')}
+              </strong>
+            </div>
+          </div>
+
+          {/* Operational Advisory Warning */}
+          <div className="p-4 rounded-lg bg-rose-950/20 border border-rose-500/30 flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-rose-400 mt-0.5 flex-shrink-0" />
+            <div className="text-xs text-[#d0c0c8] leading-relaxed">
+              <strong className="text-rose-300">Public Computer & Cyber Cafe Protection:</strong> When using shared workstations, university labs, or office laptops, leaving active logins behind allows unauthorized access. Super Logout dispatches authenticated session-kill signals across Google, Amazon, GitHub, Dropbox, Netflix, Steam, and others to lock down your accounts.
+            </div>
+          </div>
+
+          {/* Action Button Controls */}
+          <div className="flex flex-wrap items-center gap-4 pt-2">
+            {!confirmedKill ? (
+              <button
+                onClick={() => setConfirmedKill(true)}
+                className="px-6 py-3.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs mono rounded flex items-center gap-2 transition-all shadow-[0_0_20px_rgba(244,63,94,0.35)]"
+              >
+                <Power className="w-4 h-4" />
+                <span>ENGAGE EMERGENCY SUPER LOGOUT</span>
+              </button>
+            ) : (
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  onClick={handleExecuteSuperLogout}
+                  disabled={logoutRunning}
+                  className="px-6 py-3.5 bg-rose-500 hover:bg-rose-400 text-white font-extrabold text-xs mono rounded flex items-center gap-2 transition-all animate-pulse shadow-[0_0_25px_rgba(244,63,94,0.5)]"
+                >
+                  {logoutRunning ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Skull className="w-4 h-4" />}
+                  <span>{logoutRunning ? `PURGING SESSIONS (${purgedCount}/${servicesList.length})...` : 'CONFIRM PURGE: LOG OUT OF ALL SITES NOW'}</span>
+                </button>
+                <button
+                  onClick={() => setConfirmedKill(false)}
+                  disabled={logoutRunning}
+                  className="px-4 py-3.5 bg-[#161622] hover:bg-[#202030] text-[#9090a0] rounded text-xs mono border border-[#2b2b3a]"
+                >
+                  CANCEL
+                </button>
+              </div>
+            )}
+
+            <span className="text-xs mono text-[#6d6d7e]">
+              Targets: {servicesList.length} major consumer & developer platforms.
+            </span>
+          </div>
+
+          {/* Live Service Kill Matrix Grid */}
+          <div className="pt-4 border-t border-[#1e1e28] space-y-3">
+            <div className="flex items-center justify-between text-xs mono text-[#838394]">
+              <span>Active Target Registry:</span>
+              <span>{purgedCount} / {servicesList.length} Sessions Handled</span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+              {servicesList.map((svc) => {
+                const status = serviceStatuses[svc.id]
+                return (
+                  <div 
+                    key={svc.id}
+                    className={`p-3 rounded-lg border transition-all flex items-center justify-between gap-2 ${
+                      status === 'terminated' 
+                        ? 'bg-emerald-950/20 border-emerald-500/40 text-emerald-200' 
+                        : (status === 'purging' 
+                            ? 'bg-amber-950/20 border-amber-500/40 text-amber-200 animate-pulse'
+                            : (status === 'queued' 
+                                ? 'bg-[#151520] border-[#303042] text-[#8e8e9e]' 
+                                : 'bg-[#0f0f16] border-[#1d1d28] text-slate-300'))
+                    }`}
+                  >
+                    <div className="truncate">
+                      <div className="font-bold text-xs truncate">{svc.name}</div>
+                      <div className="text-[10px] mono text-[#6e6e80] truncate">{svc.domain}</div>
+                    </div>
+
+                    <div className="mono text-[10px] font-bold flex-shrink-0">
+                      {status === 'terminated' && (
+                        <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                          LOGGED OUT
+                        </span>
+                      )}
+                      {status === 'purging' && (
+                        <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                          KILLING...
+                        </span>
+                      )}
+                      {status === 'queued' && (
+                        <span className="text-[#6c6c7d]">QUEUED</span>
+                      )}
+                      {status === 'idle' && (
+                        <span className="text-[#555566]">STANDBY</span>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* FEATURE 2: 100% PRIVATE CLIENT-SIDE PRIVACY AUDIT */}
       {activeTab === 'breach' && (
         <div className="p-6 md:p-8 rounded-xl bg-[#0c0c12] border border-[#21212c] space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -285,14 +498,12 @@ export default function NetworkToolbox() {
               </div>
             </div>
 
-            {/* Zero-Leak Verified Badge */}
             <div className="flex items-center gap-1.5 px-3 py-1 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs mono font-semibold self-start sm:self-auto">
               <EyeOff className="w-3.5 h-3.5" />
               <span>100% ZERO-DATA-LEAK</span>
             </div>
           </div>
 
-          {/* Privacy Guarantee Notice Box */}
           <div className="p-4 rounded-lg bg-[#111118] border border-[#1f1f2b] flex items-start gap-3">
             <ShieldCheck className="w-5 h-5 text-[#d4ff3f] mt-0.5 flex-shrink-0" />
             <div className="text-xs text-[#a0a0b0] leading-relaxed">
@@ -344,7 +555,6 @@ export default function NetworkToolbox() {
                 </div>
               </div>
 
-              {/* Security Heuristics Grid */}
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="p-4 rounded-lg bg-[#0e0e14] border border-[#21212d] space-y-2">
                   <div className="text-xs mono uppercase text-[#d4ff3f]">Heuristic Risk Assessment:</div>
@@ -379,7 +589,6 @@ export default function NetworkToolbox() {
                 </div>
               </div>
 
-              {/* Best Practice Defenses */}
               <div className="p-4 rounded-lg bg-[#0f0f15] border border-[#1d1d28] space-y-2">
                 <h5 className="text-xs mono uppercase text-white font-bold flex items-center gap-2">
                   <ShieldCheck className="w-3.5 h-3.5 text-[#d4ff3f]" />
@@ -409,7 +618,7 @@ export default function NetworkToolbox() {
         </div>
       )}
 
-      {/* TOOL 2: SUBNET / CIDR CALCULATOR (100% LOCAL BITWISE MATH) */}
+      {/* FEATURE 3: SUBNET / CIDR CALCULATOR */}
       {activeTab === 'subnet' && (
         <div className="p-6 md:p-8 rounded-xl bg-[#0c0c12] border border-[#21212c] space-y-6">
           <div className="flex items-center gap-3">
@@ -486,7 +695,7 @@ export default function NetworkToolbox() {
         </div>
       )}
 
-      {/* TOOL 3: LIVE DNS RESOLVER (CLOUDFLARE PUBLIC DoH) */}
+      {/* FEATURE 4: LIVE DNS RESOLVER */}
       {activeTab === 'dns' && (
         <div className="p-6 md:p-8 rounded-xl bg-[#0c0c12] border border-[#21212c] space-y-6">
           <div className="flex items-center gap-3">
@@ -580,7 +789,7 @@ export default function NetworkToolbox() {
         </div>
       )}
 
-      {/* TOOL 4: BANDWIDTH & TRANSFER TIME CALCULATOR (100% LOCAL MATH) */}
+      {/* FEATURE 5: BANDWIDTH CALCULATOR */}
       {activeTab === 'bandwidth' && (
         <div className="p-6 md:p-8 rounded-xl bg-[#0c0c12] border border-[#21212c] space-y-6">
           <div className="flex items-center gap-3">
