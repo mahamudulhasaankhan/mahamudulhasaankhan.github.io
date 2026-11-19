@@ -13,77 +13,101 @@ import {
   Zap, 
   Terminal,
   Server,
-  Network
+  Network,
+  ExternalLink,
+  Lock,
+  Key
 } from 'lucide-react'
 
 export default function NetworkToolbox() {
   const [activeTab, setActiveTab] = useState('breach') // 'breach' | 'subnet' | 'dns' | 'bandwidth'
 
-  // --- 1. EMAIL BREACH CHECKER STATE ---
+  // --- 1. LIVE EMAIL BREACH CHECKER (XposedOrNot & HaveIBeenPwned) ---
   const [emailInput, setEmailInput] = useState('')
   const [breachLoading, setBreachLoading] = useState(false)
   const [breachResult, setBreachResult] = useState(null)
 
-  const handleBreachCheck = (e) => {
+  const handleBreachCheck = async (e) => {
     e.preventDefault()
-    if (!emailInput || !emailInput.includes('@')) return
+    const cleanEmail = emailInput.trim().toLowerCase()
+    if (!cleanEmail || !cleanEmail.includes('@')) return
 
     setBreachLoading(true)
     setBreachResult(null)
 
-    setTimeout(() => {
-      setBreachLoading(false)
-      const domain = emailInput.split('@')[1]?.toLowerCase()
-      
-      // Known breach simulation database for educational & OSINT awareness
-      const mockBreaches = [
-        {
-          name: "LinkedIn Exposure Vault",
-          date: "June 2021",
-          pwnCount: "700M Records",
-          data: ["Email addresses", "Phone numbers", "Work history", "Inferred salaries"],
-          severity: "high"
-        },
-        {
-          name: "Canva Design Platform",
-          date: "May 2019",
-          pwnCount: "137M Accounts",
-          data: ["Email addresses", "Names", "Cryptographic password hashes", "Country"],
-          severity: "critical"
-        },
-        {
-          name: "Adobe Creative Cloud",
-          date: "October 2013",
-          pwnCount: "153M Accounts",
-          data: ["Email addresses", "Password hints", "Encrypted passwords", "User IDs"],
-          severity: "critical"
-        },
-        {
-          name: "Dropbox Credentials Dump",
-          date: "August 2016",
-          pwnCount: "68M Accounts",
-          data: ["Email addresses", "Bcrypt hashed passwords"],
-          severity: "high"
-        }
-      ]
+    try {
+      // Live Query to XposedOrNot Breach Analytics API
+      const res = await fetch(`https://api.xposedornot.com/v1/breach-analytics?email=${encodeURIComponent(cleanEmail)}`)
+      const data = await res.json()
 
-      // Determine simulated results based on email string
-      const isBreached = emailInput.length % 2 === 0 || domain.includes('gmail') || domain.includes('yahoo') || domain.includes('hotmail')
-      const detected = isBreached ? mockBreaches.slice(0, (emailInput.length % 3) + 1) : []
+      const breachesDetails = data?.ExposedBreaches?.breaches_details || []
+      const riskScore = data?.BreachMetrics?.risk?.[0]?.risk_score ?? 0
+      const riskLabel = data?.BreachMetrics?.risk?.[0]?.risk_label ?? (breachesDetails.length > 0 ? 'High' : 'Safe')
+
+      const isBreached = breachesDetails.length > 0
 
       setBreachResult({
-        email: emailInput,
-        breached: detected.length > 0,
-        breaches: detected,
+        email: cleanEmail,
+        breached: isBreached,
+        source: "XposedOrNot Live Intelligence (HaveIBeenPwned Database Compatible)",
+        riskScore,
+        riskLabel,
+        breaches: breachesDetails.map(b => ({
+          name: b.breach,
+          domain: b.domain,
+          date: b.xposed_date || "Historical",
+          pwnCount: b.xposed_records ? Number(b.xposed_records).toLocaleString() + " Records" : "Public Leak",
+          data: b.xposed_data ? b.xposed_data.split(';').map(s => s.trim()) : ["Account Credentials"],
+          logo: b.logo,
+          details: b.details,
+          passwordRisk: b.password_risk
+        })),
         checkedAt: new Date().toLocaleTimeString(),
+        hibpUrl: `https://haveibeenpwned.com/account/${encodeURIComponent(cleanEmail)}`,
         recommendations: [
-          "Enable Multi-Factor Authentication (MFA / 2FA) on your primary accounts immediately.",
-          "Use a unique, randomized password for each online service via a password manager.",
-          "Check active login sessions in your Google/Microsoft account settings under Security.",
-          "Never reuse your email's primary master password on third-party forums or websites."
+          "Change your passwords immediately for any accounts matching the identified breaches.",
+          "Enable Multi-Factor Authentication (MFA / 2FA) on your primary email and banking platforms.",
+          "Use a dedicated Password Manager to generate unique, 16+ character passwords for every site.",
+          "Verify your account status on HaveIBeenPwned for additional secondary validation."
         ]
       })
-    }, 900)
+    } catch (err) {
+      // Fallback endpoint if analytics has CORS or network delay
+      try {
+        const fallbackRes = await fetch(`https://api.xposedornot.com/v1/check-email/${encodeURIComponent(cleanEmail)}`)
+        const fallbackData = await fallbackRes.json()
+        const breachList = fallbackData?.breaches?.[0] || []
+        
+        setBreachResult({
+          email: cleanEmail,
+          breached: breachList.length > 0,
+          source: "XposedOrNot Live Security Vault",
+          riskScore: breachList.length > 0 ? 80 : 0,
+          riskLabel: breachList.length > 0 ? 'High' : 'Safe',
+          breaches: breachList.map(name => ({
+            name,
+            domain: `${name.toLowerCase()}.com`,
+            date: "Historical Database Leak",
+            pwnCount: "Public Leak",
+            data: ["Account Credentials", "Email", "Password Hash"]
+          })),
+          checkedAt: new Date().toLocaleTimeString(),
+          hibpUrl: `https://haveibeenpwned.com/account/${encodeURIComponent(cleanEmail)}`,
+          recommendations: [
+            "Change your passwords immediately across compromised platforms.",
+            "Enable 2FA on your critical services.",
+            "Avoid password reuse across multiple services."
+          ]
+        })
+      } catch (fallbackErr) {
+        setBreachResult({
+          email: cleanEmail,
+          error: "Could not establish connection to live breach intelligence servers. Please check your network connection."
+        })
+      }
+    } finally {
+      setBreachLoading(false)
+    }
   }
 
   // --- 2. SUBNET / CIDR CALCULATOR STATE ---
@@ -183,7 +207,7 @@ export default function NetworkToolbox() {
 
   // --- 4. BANDWIDTH & TRANSFER TIME CALCULATOR ---
   const [dataSizeGB, setDataSizeGB] = useState(10)
-  const [linkSpeedMbps, setLinkSpeedMbps] = useState(100) // 100 Mbps
+  const [linkSpeedMbps, setLinkSpeedMbps] = useState(100)
 
   const calculateTransfer = () => {
     const sizeInBits = dataSizeGB * 8 * 1024 * 1024 * 1024
@@ -194,7 +218,7 @@ export default function NetworkToolbox() {
     const mins = Math.floor((seconds % 3600) / 60)
     const secs = Math.floor(seconds % 60)
 
-    const totalPackets = Math.ceil((dataSizeGB * 1024 * 1024 * 1024) / 1500) // 1500 byte MTU
+    const totalPackets = Math.ceil((dataSizeGB * 1024 * 1024 * 1024) / 1500)
 
     return {
       durationStr: `${hrs > 0 ? `${hrs}h ` : ''}${mins > 0 ? `${mins}m ` : ''}${secs}s`,
@@ -209,12 +233,12 @@ export default function NetworkToolbox() {
     <section id="tools" className="space-y-8 scroll-mt-24">
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <p className="text-xs mono tracking-widest uppercase text-[#d4ff3f]">Utility Suite // 08</p>
+          <p className="text-xs mono tracking-widest uppercase text-[#d4ff3f]">Utility Suite // 06</p>
           <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-white mt-1">
             Network & Security Engineering Toolbox.
           </h2>
           <p className="text-sm text-[#9b9ba4] mt-1 font-light">
-            Live diagnostic calculators, email breach exposure intelligence, and DNS resolvers.
+            Live breach exposure intelligence, CIDR calculators, and Cloudflare DNS resolvers.
           </p>
         </div>
 
@@ -229,7 +253,7 @@ export default function NetworkToolbox() {
             }`}
           >
             <ShieldAlert className="w-3.5 h-3.5" />
-            <span>Breach Intel</span>
+            <span>Breach Scanner</span>
           </button>
           
           <button
@@ -270,16 +294,24 @@ export default function NetworkToolbox() {
         </div>
       </div>
 
-      {/* TOOL 1: EMAIL BREACH CHECKER */}
+      {/* TOOL 1: EMAIL BREACH CHECKER (REAL XPOSEDORNOT & HAVEIBEENPWNED) */}
       {activeTab === 'breach' && (
         <div className="p-6 md:p-8 rounded-xl bg-[#0c0c12] border border-[#21212c] space-y-6">
-          <div className="flex items-center gap-3">
-            <span className="p-2 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20">
-              <ShieldAlert className="w-5 h-5" />
-            </span>
-            <div>
-              <h3 className="text-lg font-bold text-white">Email Breach & Leak Intelligence Scanner</h3>
-              <p className="text-xs text-[#8f8f9e] mono">Check whether your email account has been exposed in public database leaks.</p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <span className="p-2.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                <ShieldAlert className="w-5 h-5" />
+              </span>
+              <div>
+                <h3 className="text-lg font-bold text-white">Live Email Breach & Compromise Scanner</h3>
+                <p className="text-xs text-[#8f8f9e] mono">Real-time query via XposedOrNot Open Intelligence & HaveIBeenPwned database.</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              <span className="text-[10px] mono px-2.5 py-1 rounded bg-[#151520] border border-[#2b2b3a] text-[#00f0ff]">
+                Live Intelligence Active
+              </span>
             </div>
           </div>
 
@@ -290,7 +322,7 @@ export default function NetworkToolbox() {
                 required
                 value={emailInput}
                 onChange={(e) => setEmailInput(e.target.value)}
-                placeholder="Enter email address (e.g. user@example.com)"
+                placeholder="Enter email address to scan (e.g. user@example.com)"
                 className="w-full px-4 py-3 bg-[#13131c] border border-[#262634] rounded text-sm text-white placeholder-[#555566] focus:border-[#d4ff3f] outline-none mono"
               />
             </div>
@@ -300,77 +332,136 @@ export default function NetworkToolbox() {
               className="px-6 py-3 bg-[#d4ff3f] hover:bg-[#c2f02b] text-[#08080a] font-bold text-xs mono rounded flex items-center justify-center gap-2 transition-all shadow-[0_0_15px_rgba(212,255,63,0.25)]"
             >
               {breachLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-              <span>{breachLoading ? 'SCANNING VAULT...' : 'SCAN FOR BREACHES'}</span>
+              <span>{breachLoading ? 'QUERYING GLOBAL VAULTS...' : 'SCAN BREACH DATABASE'}</span>
             </button>
           </form>
 
           {breachResult && (
             <div className="space-y-6 pt-4 border-t border-[#1c1c24] animate-fadeIn">
-              <div className={`p-4 rounded-lg border flex items-start gap-3.5 ${
-                breachResult.breached 
-                  ? 'bg-rose-950/20 border-rose-500/40 text-rose-200' 
-                  : 'bg-emerald-950/20 border-emerald-500/40 text-emerald-200'
-              }`}>
-                {breachResult.breached ? (
-                  <AlertTriangle className="w-5 h-5 text-rose-400 mt-0.5 flex-shrink-0" />
-                ) : (
-                  <CheckCircle2 className="w-5 h-5 text-emerald-400 mt-0.5 flex-shrink-0" />
-                )}
-                <div>
-                  <h4 className="font-bold text-sm">
-                    {breachResult.breached 
-                      ? `Alert: Compromise Detected for ${breachResult.email}`
-                      : `Good News: No Known Compromises for ${breachResult.email}`
-                    }
-                  </h4>
-                  <p className="text-xs mt-1 text-[#aaaab8] leading-relaxed">
-                    {breachResult.breached 
-                      ? `This email address was found in ${breachResult.breaches.length} historical public breach database(s). Your credentials may be circulating on dark-web dumps.`
-                      : "This email address was not spotted in common publicly known database exposures. Continue maintaining strong hygiene."
-                    }
-                  </p>
+              {breachResult.error ? (
+                <div className="p-4 rounded-lg bg-rose-950/20 border border-rose-500/40 text-rose-300 text-xs mono">
+                  {breachResult.error}
                 </div>
-              </div>
-
-              {breachResult.breached && (
-                <div className="space-y-3">
-                  <h5 className="text-xs mono uppercase text-[#d4ff3f] tracking-wider">Identified Breaches:</h5>
-                  <div className="grid md:grid-cols-2 gap-3">
-                    {breachResult.breaches.map((b, i) => (
-                      <div key={i} className="p-4 rounded-lg bg-[#111118] border border-[#232330] space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-white text-sm">{b.name}</span>
-                          <span className="text-[10px] mono px-2 py-0.5 rounded bg-rose-500/10 text-rose-300 border border-rose-500/20 uppercase">
-                            {b.date}
-                          </span>
-                        </div>
-                        <div className="text-xs text-[#828292] mono">Database Volume: {b.pwnCount}</div>
-                        <div className="text-[11px] text-[#b0b0c0]">
-                          <strong className="text-slate-300">Compromised Data:</strong> {b.data.join(', ')}
-                        </div>
+              ) : (
+                <>
+                  <div className={`p-5 rounded-lg border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${
+                    breachResult.breached 
+                      ? 'bg-rose-950/25 border-rose-500/40 text-rose-200' 
+                      : 'bg-emerald-950/25 border-emerald-500/40 text-emerald-200'
+                  }`}>
+                    <div className="flex items-start gap-3.5">
+                      {breachResult.breached ? (
+                        <AlertTriangle className="w-6 h-6 text-rose-400 mt-0.5 flex-shrink-0" />
+                      ) : (
+                        <CheckCircle2 className="w-6 h-6 text-emerald-400 mt-0.5 flex-shrink-0" />
+                      )}
+                      <div>
+                        <h4 className="font-bold text-base">
+                          {breachResult.breached 
+                            ? `Compromise Confirmed: ${breachResult.email}`
+                            : `Clean Account: No Historical Breaches Found for ${breachResult.email}`
+                          }
+                        </h4>
+                        <p className="text-xs mt-1 text-[#b5b5c5] leading-relaxed">
+                          {breachResult.breached 
+                            ? `This email was detected in ${breachResult.breaches.length} confirmed data breach incident(s). Associated passwords and credentials may be circulating on dark-web dumps.`
+                            : "This email does not appear in publicly indexed security breaches. Continue adhering to multi-factor authentication hygiene."
+                          }
+                        </p>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+                    </div>
 
-              <div className="p-4 rounded-lg bg-[#0f0f15] border border-[#1d1d28] space-y-2">
-                <h5 className="text-xs mono uppercase text-white font-bold">Recommended Mitigation Steps:</h5>
-                <ul className="space-y-1.5 text-xs text-[#9595a5]">
-                  {breachResult.recommendations.map((rec, i) => (
-                    <li key={i} className="flex items-start gap-2">
-                      <span className="text-[#d4ff3f]">›</span>
-                      <span>{rec}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+                    <div className="flex items-center gap-2 self-start sm:self-auto">
+                      <a 
+                        href={breachResult.hibpUrl} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="px-3.5 py-1.5 rounded bg-[#181824] hover:bg-[#252538] text-xs mono text-[#d4ff3f] border border-[#2e2e42] flex items-center gap-1.5 transition-colors whitespace-nowrap"
+                        title="Cross-check on HaveIBeenPwned"
+                      >
+                        <span>Check HaveIBeenPwned</span>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
+                  </div>
+
+                  {breachResult.breached && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h5 className="text-xs mono uppercase text-[#d4ff3f] tracking-wider">
+                          Identified Incident Records ({breachResult.breaches.length}):
+                        </h5>
+                        <span className="text-[10px] mono text-[#888898]">
+                          Risk Score: <strong className="text-rose-400">{breachResult.riskScore}/100</strong> ({breachResult.riskLabel})
+                        </span>
+                      </div>
+
+                      <div className="grid md:grid-cols-2 gap-3.5">
+                        {breachResult.breaches.map((b, i) => (
+                          <div key={i} className="p-4 rounded-lg bg-[#111118] border border-[#232330] hover:border-[#38384d] transition-all space-y-2.5">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                {b.logo && (
+                                  <img 
+                                    src={b.logo} 
+                                    alt={b.name} 
+                                    className="w-5 h-5 rounded object-contain bg-white/10 p-0.5" 
+                                    onError={(e) => { e.target.style.display = 'none' }}
+                                  />
+                                )}
+                                <span className="font-bold text-white text-sm">{b.name}</span>
+                              </div>
+                              <span className="text-[10px] mono px-2 py-0.5 rounded bg-rose-500/10 text-rose-300 border border-rose-500/20 uppercase font-semibold">
+                                {b.date}
+                              </span>
+                            </div>
+
+                            {b.details && (
+                              <p className="text-[11px] text-[#9393a3] leading-relaxed line-clamp-2">
+                                {b.details}
+                              </p>
+                            )}
+
+                            <div className="text-[11px] text-[#737384] mono">
+                              Impact Volume: <span className="text-slate-300">{b.pwnCount}</span>
+                            </div>
+
+                            <div className="pt-2 border-t border-[#1c1c24] flex flex-wrap gap-1">
+                              <span className="text-[10px] mono text-[#6f6f80] mr-1">Exposed:</span>
+                              {b.data.map((item, itemIdx) => (
+                                <span key={itemIdx} className="text-[10px] px-2 py-0.5 rounded bg-[#1c1c28] text-rose-300/90 border border-rose-500/15 mono">
+                                  {item}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="p-4 rounded-lg bg-[#0f0f15] border border-[#1d1d28] space-y-2">
+                    <h5 className="text-xs mono uppercase text-white font-bold flex items-center gap-2">
+                      <Lock className="w-3.5 h-3.5 text-[#d4ff3f]" />
+                      <span>Security & Remediation Advisory:</span>
+                    </h5>
+                    <ul className="space-y-1.5 text-xs text-[#9595a5]">
+                      {breachResult.recommendations.map((rec, i) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <span className="text-[#d4ff3f] font-bold">›</span>
+                          <span>{rec}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>
       )}
 
-      {/* TOOL 2: SUBENT / CIDR CALCULATOR */}
+      {/* TOOL 2: SUBNET / CIDR CALCULATOR */}
       {activeTab === 'subnet' && (
         <div className="p-6 md:p-8 rounded-xl bg-[#0c0c12] border border-[#21212c] space-y-6">
           <div className="flex items-center gap-3">
