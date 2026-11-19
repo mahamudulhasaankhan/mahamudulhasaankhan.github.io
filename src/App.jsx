@@ -21,6 +21,7 @@ import {
   Layers,
   Sparkles
 } from 'lucide-react'
+import NetworkCanvas from './components/NetworkCanvas'
 
 export default function App() {
   const [scrollProgress, setScrollProgress] = useState(0)
@@ -263,37 +264,45 @@ mgmt0          Ethernet    UP        1500    1Gbps      OOB Syslog / Zabbix`
       <div className="pl-12 md:pl-24 pr-6 md:pr-12">
         <main className="max-w-6xl mx-auto space-y-32 py-12 md:py-20">
 
-          {/* HERO SECTION */}
-          <section className="space-y-8 pt-4 md:pt-10">
-            <div className="inline-flex items-center gap-2.5 px-3 py-1 rounded bg-[#13131a] border border-[#23232c] text-xs mono text-[#d4ff3f]">
-              <span className="w-2 h-2 rounded-full bg-[#d4ff3f] animate-pulse"></span>
-              <span>MD MAHAMUDUL HASSAN (SHIHAB) · CORE-ACCESS @ AMBER IT</span>
+          {/* HERO SECTION WITH INTERACTIVE 3D NET3D TOPOLOGY */}
+          <section className="relative min-h-[75vh] md:min-h-[85vh] flex flex-col justify-center py-10 md:py-16 overflow-hidden">
+            {/* 3D Clos Fabric Canvas (Like walana.tech) */}
+            <div className="absolute inset-0 pointer-events-none -left-12 md:-left-24 -right-6 md:-right-12">
+              <NetworkCanvas />
+              <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_65%_60%_at_35%_50%,rgba(8,8,10,0.85),rgba(8,8,10,0.25)_65%,transparent)]"></div>
             </div>
 
-            <div className="space-y-4">
-              <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight uppercase leading-[1.05]">
-                The strongest networks are <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#d4ff3f] via-[#00f0ff] to-white">invisible.</span>
-              </h1>
-              <p className="text-lg md:text-2xl text-[#9b9ba4] max-w-3xl leading-relaxed font-light">
-                Engineering carrier-grade routing, core-access resilience, and automated logging for mission-critical enterprise environments.
-              </p>
-            </div>
+            <div className="relative z-10 space-y-8 max-w-4xl">
+              <div className="inline-flex items-center gap-2.5 px-3 py-1 rounded bg-[#13131a]/90 backdrop-blur-md border border-[#23232c] text-xs mono text-[#d4ff3f]">
+                <span className="w-2 h-2 rounded-full bg-[#d4ff3f] animate-pulse"></span>
+                <span>MD MAHAMUDUL HASSAN (SHIHAB) · CORE-ACCESS @ AMBER IT</span>
+              </div>
 
-            <div className="flex flex-wrap items-center gap-4 pt-4 mono text-xs font-semibold">
-              <a 
-                href="#work"
-                className="px-6 py-3.5 bg-[#d4ff3f] text-[#08080a] rounded hover:bg-[#c2f02b] transition-all flex items-center gap-2 shadow-[0_0_20px_rgba(212,255,63,0.3)]"
-              >
-                <span>EXPLORE PRODUCTION WORK</span>
-                <ChevronRight className="w-4 h-4" />
-              </a>
-              <a 
-                href="#terminal"
-                className="px-6 py-3.5 border border-[#2e2e38] bg-[#101017] text-[#f4f4f2] rounded hover:border-[#d4ff3f] transition-all flex items-center gap-2"
-              >
-                <TerminalIcon className="w-4 h-4 text-[#d4ff3f]" />
-                <span>LAUNCH DIAGNOSTIC CLI</span>
-              </a>
+              <div className="space-y-4">
+                <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight uppercase leading-[1.05]">
+                  The strongest networks are <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#d4ff3f] via-[#00f0ff] to-white">invisible.</span>
+                </h1>
+                <p className="text-lg md:text-2xl text-[#9b9ba4] max-w-2xl leading-relaxed font-light">
+                  Engineering carrier-grade routing, core-access resilience, and automated logging for mission-critical enterprise environments.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-4 pt-4 mono text-xs font-semibold">
+                <a 
+                  href="#work"
+                  className="px-6 py-3.5 bg-[#d4ff3f] text-[#08080a] rounded hover:bg-[#c2f02b] transition-all flex items-center gap-2 shadow-[0_0_20px_rgba(212,255,63,0.3)]"
+                >
+                  <span>EXPLORE PRODUCTION WORK</span>
+                  <ChevronRight className="w-4 h-4" />
+                </a>
+                <a 
+                  href="#terminal"
+                  className="px-6 py-3.5 border border-[#2e2e38] bg-[#101017]/90 backdrop-blur-md text-[#f4f4f2] rounded hover:border-[#d4ff3f] transition-all flex items-center gap-2"
+                >
+                  <TerminalIcon className="w-4 h-4 text-[#d4ff3f]" />
+                  <span>LAUNCH DIAGNOSTIC CLI</span>
+                </a>
+              </div>
             </div>
           </section>
 
