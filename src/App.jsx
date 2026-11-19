@@ -19,15 +19,110 @@ import {
   X,
   Activity,
   Layers,
-  Sparkles
+  Sparkles,
+  Globe,
+  Wifi,
+  Compass,
+  Power,
+  Calculator,
+  Lock,
+  Zap
 } from 'lucide-react'
 import NetworkCanvas from './components/NetworkCanvas'
 import NetworkToolbox from './components/NetworkToolbox'
+import ToolsPage from './pages/ToolsPage'
 
 export default function App() {
   const [scrollProgress, setScrollProgress] = useState(0)
   const [activeSection, setActiveSection] = useState('')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
+  // SPA Route State ('home' | 'tools')
+  const [currentPage, setCurrentPage] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash
+      const params = new URLSearchParams(window.location.search)
+      const path = window.location.pathname
+      if (
+        hash.startsWith('#/tools') || 
+        hash === '#tools-page' || 
+        params.get('page') === 'tools' || 
+        path === '/tools' || 
+        path === '/tools/'
+      ) {
+        return 'tools'
+      }
+    }
+    return 'home'
+  })
+
+  const [initialToolTab, setInitialToolTab] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash
+      const params = new URLSearchParams(window.location.search)
+      let tab = params.get('tab')
+      if (!tab && hash.includes('tab=')) {
+        const match = hash.match(/tab=([a-z0-9_-]+)/i)
+        if (match) tab = match[1]
+      }
+      return tab || 'dns'
+    }
+    return 'dns'
+  })
+
+  // Listen for browser history & hash changes
+  useEffect(() => {
+    const handleLocationChange = () => {
+      const hash = window.location.hash
+      const params = new URLSearchParams(window.location.search)
+      const path = window.location.pathname
+      
+      if (
+        hash.startsWith('#/tools') || 
+        hash === '#tools-page' || 
+        params.get('page') === 'tools' || 
+        path === '/tools' || 
+        path === '/tools/'
+      ) {
+        setCurrentPage('tools')
+        let tab = params.get('tab')
+        if (!tab && hash.includes('tab=')) {
+          const match = hash.match(/tab=([a-z0-9_-]+)/i)
+          if (match) tab = match[1]
+        }
+        if (tab) setInitialToolTab(tab)
+      } else {
+        setCurrentPage('home')
+      }
+    }
+
+    window.addEventListener('hashchange', handleLocationChange)
+    window.addEventListener('popstate', handleLocationChange)
+    return () => {
+      window.removeEventListener('hashchange', handleLocationChange)
+      window.removeEventListener('popstate', handleLocationChange)
+    }
+  }, [])
+
+  const navigateToTools = (tab = 'dns') => {
+    setInitialToolTab(tab)
+    setCurrentPage('tools')
+    window.history.pushState(null, null, `#/tools?tab=${tab}`)
+    window.scrollTo({ top: 0, behavior: 'instant' })
+  }
+
+  const navigateToHome = (section = '') => {
+    setCurrentPage('home')
+    window.history.pushState(null, null, section ? `#${section}` : '#/')
+    if (section) {
+      setTimeout(() => {
+        const el = document.getElementById(section)
+        if (el) el.scrollIntoView({ behavior: 'smooth' })
+      }, 50)
+    } else {
+      window.scrollTo({ top: 0, behavior: 'instant' })
+    }
+  }
 
   // Navigation Items with IDs matching sections
   const navItems = [
@@ -326,6 +421,16 @@ round-trip min/avg/max/stddev = 0.584/0.603/0.628/0.017 ms`
     }
   ]
 
+  // Dedicated Standalone Tools Page View
+  if (currentPage === 'tools') {
+    return (
+      <ToolsPage 
+        onBack={() => navigateToHome('tools')} 
+        initialTab={initialToolTab} 
+      />
+    )
+  }
+
   return (
     <div className="relative min-h-screen bg-[#08080a] text-[#f4f4f2] selection:bg-[#d4ff3f] selection:text-[#08080a]">
       {/* PACKET TRANSMISSION SPINE (Anchored cleanly to viewport edge) */}
@@ -378,7 +483,14 @@ round-trip min/avg/max/stddev = 0.584/0.603/0.628/0.017 ms`
                 <a 
                   key={item.id}
                   href={`#${item.id}`}
-                  onClick={() => setActiveSection(item.id)}
+                  onClick={(e) => {
+                    if (item.id === 'tools') {
+                      e.preventDefault()
+                      navigateToTools('dns')
+                    } else {
+                      setActiveSection(item.id)
+                    }
+                  }}
                   className={`transition-all duration-150 relative py-1 ${
                     isActive 
                       ? 'text-[#d4ff3f] font-bold' 
@@ -422,8 +534,13 @@ round-trip min/avg/max/stddev = 0.584/0.603/0.628/0.017 ms`
                 <a 
                   key={item.id}
                   href={`#${item.id}`}
-                  onClick={() => {
-                    setActiveSection(item.id)
+                  onClick={(e) => {
+                    if (item.id === 'tools') {
+                      e.preventDefault()
+                      navigateToTools('dns')
+                    } else {
+                      setActiveSection(item.id)
+                    }
                     setMobileMenuOpen(false)
                   }}
                   className={`block py-1.5 transition-colors ${
@@ -789,8 +906,127 @@ round-trip min/avg/max/stddev = 0.584/0.603/0.628/0.017 ms`
             </div>
           </section>
 
-          {/* 06 / NETWORK & SECURITY TOOLBOX */}
-          <NetworkToolbox />
+          {/* 06 / NETWORK & SECURITY TOOLBOX HUB */}
+          <section id="tools" className="space-y-8 scroll-mt-24">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-4 border-b border-[#1c1c26]">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs mono tracking-widest uppercase text-[#d4ff3f]">Utility Suite // 06</span>
+                  <span className="px-2 py-0.5 rounded bg-[#13131c] text-[#a0a0b2] text-[10px] mono border border-[#252536]">
+                    9 ENGINES ONLINE · 100% PRIVATE
+                  </span>
+                </div>
+                <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight text-white mt-1">
+                  Carrier-Grade Network Toolbox.
+                </h2>
+                <p className="text-sm md:text-base text-[#9b9ba4] mt-2 max-w-2xl font-light">
+                  A dedicated high-performance engineering suite with 9 offline and live engines for DoH DNS, global Anycast latency, BGP looking glass, optical link budgeting, MAC OUI analysis, and zero-leak privacy auditing.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => navigateToTools('dns')}
+                className="px-6 py-3.5 bg-[#d4ff3f] text-[#08080a] font-bold mono text-xs uppercase rounded-lg hover:bg-[#c2f02b] transition-all flex items-center justify-center gap-2.5 shadow-[0_0_25px_rgba(212,255,63,0.35)] shrink-0 group"
+              >
+                <span>OPEN DEDICATED TOOLBOX PAGE</span>
+                <ArrowUpRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+              </button>
+            </div>
+
+            {/* 3x3 Showcase Grid of the 9 Tools */}
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[
+                {
+                  id: 'dns',
+                  num: '01',
+                  title: 'Live DNS-over-HTTPS Resolver',
+                  desc: 'Parallel DoH resolution querying Cloudflare, Google, and Quad9 for A, AAAA, MX, TXT, NS records with millisecond response benchmarks.',
+                  tag: 'DoH / RFC 8484'
+                },
+                {
+                  id: 'latency',
+                  num: '02',
+                  title: 'Global Edge & PoP Latency Matrix',
+                  desc: 'Direct HTTP fetch probe measuring round-trip time across global Anycast CDN edges and local Dhaka domestic routing nodes.',
+                  tag: 'Edge Anycast / RTT'
+                },
+                {
+                  id: 'bgp',
+                  num: '03',
+                  title: 'BGP Looking Glass & ASN Inspector',
+                  desc: 'Autonomous System Number routing lookup, ASN registry ownership, upstream peering paths, and CIDR prefix allocation.',
+                  tag: 'BGP / AS-Path'
+                },
+                {
+                  id: 'fiber',
+                  num: '04',
+                  title: 'Optical Fiber Link Budget Calculator',
+                  desc: 'ITU-T G.652 single-mode fiber optical power loss, connector insertion attenuation, splice loss, and Rx safety margin modeling.',
+                  tag: 'ITU-T G.652 / SMF'
+                },
+                {
+                  id: 'mac',
+                  num: '05',
+                  title: 'Carrier MAC OUI Vendor Identifier',
+                  desc: '100% offline hardware vendor database identifying Juniper, Cisco, MikroTik, Huawei, ZTE, Nokia, and Arista enterprise gear.',
+                  tag: 'IEEE OUI / Offline'
+                },
+                {
+                  id: 'superlogout',
+                  num: '06',
+                  title: 'Emergency Session Kill & Cache Purge',
+                  desc: 'One-click kill switch terminating active logins across 25+ online platforms and purging local client storage caches.',
+                  tag: 'Kill Switch / Cache Purge'
+                },
+                {
+                  id: 'subnet',
+                  num: '07',
+                  title: 'IPv4 CIDR Subnet Calculator',
+                  desc: 'Carrier-grade network partition engine calculating usable host ranges, broadcast addresses, wildcard bits, and CIDR masks.',
+                  tag: 'RFC 1918 / CIDR'
+                },
+                {
+                  id: 'breach',
+                  num: '08',
+                  title: 'Zero-Leak Privacy & Breach Audit',
+                  desc: 'Cryptographic client-side credential and domain vulnerability scoring with zero packet transmission.',
+                  tag: 'Zero-Data-Leak'
+                },
+                {
+                  id: 'bandwidth',
+                  num: '09',
+                  title: 'Wire Transfer & Link Saturation Calc',
+                  desc: 'L2 Ethernet framing overhead, MTU sizing, and file transfer duration modeling for 1G, 10G, 40G, and 100G optical links.',
+                  tag: 'L2/L3 Wire Overhead'
+                }
+              ].map(t => (
+                <div 
+                  key={t.id}
+                  onClick={() => navigateToTools(t.id)}
+                  className="p-5 rounded-xl bg-[#0c0c12] border border-[#1e1e28] hover:border-[#d4ff3f]/60 transition-all cursor-pointer flex flex-col justify-between group hover:shadow-[0_4px_20px_rgba(0,0,0,0.4)]"
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] mono text-[#d4ff3f] font-bold tracking-widest">{t.num} // ENGINE</span>
+                      <span className="text-[10px] mono px-2 py-0.5 rounded bg-[#161622] text-[#8e8e9e] border border-[#232332]">{t.tag}</span>
+                    </div>
+                    <h3 className="text-base font-bold text-white group-hover:text-[#d4ff3f] transition-colors">
+                      {t.title}
+                    </h3>
+                    <p className="text-xs text-[#9595a4] leading-relaxed font-light">
+                      {t.desc}
+                    </p>
+                  </div>
+
+                  <div className="pt-4 mt-4 border-t border-[#181822] flex items-center justify-between text-xs mono text-[#d4ff3f]">
+                    <span className="font-semibold uppercase tracking-wider text-[11px]">Launch Engine</span>
+                    <ArrowUpRight className="w-4 h-4 transition-transform group-hover:translate-x-1 group-hover:-translate-y-1" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
 
           {/* 07 / CERTIFICATIONS & EDUCATION */}
           <section id="education" className="space-y-8 scroll-mt-24">

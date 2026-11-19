@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Mahamudul Hassan | Network Engineering Portfolio</title>
+    <script>
+      // Single Page Apps redirect for GitHub Pages custom domain / paths
+      // Handles direct navigations like /tools -> /#/tools
+      var path = window.location.pathname;
+      var search = window.location.search;
+      var hash = window.location.hash;
+      
+      // If path is /tools or /tools/, redirect to /#/tools with preserved query & hash
+      if (path === '/tools' || path === '/tools/' || path.endsWith('/tools') || path.endsWith('/tools/')) {
+        window.location.replace('/' + '#/tools' + search + hash);
+      } else {
+        window.location.replace('/' + '#' + path + search + hash);
+      }
+    </script>
+  </head>
+  <body>
+    <p>Redirecting to Network Operations Center...</p>
+  </body>
+</html>

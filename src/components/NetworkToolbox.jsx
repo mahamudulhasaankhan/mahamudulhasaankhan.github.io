@@ -36,8 +36,35 @@ import {
   Layers
 } from 'lucide-react'
 
-export default function NetworkToolbox() {
-  const [activeTab, setActiveTab] = useState('dns') // Default to Live DNS, superlogout is 3rd
+export default function NetworkToolbox({ isStandalone = false, onBack, initialTab = 'dns' }) {
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash
+      const params = new URLSearchParams(window.location.search)
+      let tab = params.get('tab')
+      if (!tab && hash.includes('tab=')) {
+        const match = hash.match(/tab=([a-z0-9_-]+)/i)
+        if (match) tab = match[1]
+      }
+      if (tab && ['dns', 'latency', 'bgp', 'fiber', 'mac', 'superlogout', 'subnet', 'breach', 'bandwidth'].includes(tab)) {
+        return tab
+      }
+    }
+    return initialTab || 'dns'
+  })
+
+  useEffect(() => {
+    if (initialTab && ['dns', 'latency', 'bgp', 'fiber', 'mac', 'superlogout', 'subnet', 'breach', 'bandwidth'].includes(initialTab)) {
+      setActiveTab(initialTab)
+    }
+  }, [initialTab])
+
+  const handleTabSwitch = (tab) => {
+    setActiveTab(tab)
+    if (isStandalone && typeof window !== 'undefined') {
+      window.history.replaceState(null, null, `#/tools?tab=${tab}`)
+    }
+  }
 
   // --- 1. ACTIVE BROWSER SESSION & CACHE PURGE ENGINE ---
   const servicesList = [
@@ -800,19 +827,26 @@ export default function NetworkToolbox() {
     <section id="tools" className="space-y-8 scroll-mt-24">
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <p className="text-xs mono tracking-widest uppercase text-[#d4ff3f]">Utility Suite // 06</p>
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="text-xs mono tracking-widest uppercase text-[#d4ff3f]">
+              {isStandalone ? "CARRIER LABS // DEDICATED SUITE" : "Utility Suite // 06"}
+            </span>
+            <span className="px-2 py-0.5 rounded bg-[#13131c] text-[#a0a0b2] text-[10px] mono border border-[#252536]">
+              9 ENGINES ONLINE · 100% PRIVATE
+            </span>
+          </div>
           <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-white mt-1">
             Network & Security Engineering Toolbox.
           </h2>
-          <p className="text-sm text-[#9b9ba4] mt-1 font-light">
-            Emergency Super Logout, client-side privacy audits, CIDR calculators, and DoH resolvers.
+          <p className="text-sm md:text-base text-[#9b9ba4] mt-2 max-w-2xl font-light">
+            All diagnostics and security analyzers operate <strong className="text-white font-medium">100% on the client side</strong>. No packet data or queries ever leave your browser without explicit consent.
           </p>
         </div>
 
         {/* Expanded Network & Telecom Engineering Tab Navigation */}
         <div className="flex items-center gap-1.5 p-1 rounded-lg bg-[#0e0e14] border border-[#20202a] self-start sm:self-auto overflow-x-auto max-w-full">
           <button
-            onClick={() => setActiveTab('dns')}
+            onClick={() => handleTabSwitch('dns')}
             className={`px-3 py-1.5 rounded text-xs mono uppercase transition-all flex items-center gap-1.5 whitespace-nowrap ${
               activeTab === 'dns' 
                 ? 'bg-[#d4ff3f] text-[#08080a] font-bold shadow-[0_0_12px_rgba(212,255,63,0.3)]' 
@@ -825,7 +859,7 @@ export default function NetworkToolbox() {
 
           <button
             onClick={() => {
-              setActiveTab('latency')
+              handleTabSwitch('latency')
               if (Object.keys(latencyResults).length === 0) measureLatency()
             }}
             className={`px-3 py-1.5 rounded text-xs mono uppercase transition-all flex items-center gap-1.5 whitespace-nowrap ${
@@ -840,7 +874,7 @@ export default function NetworkToolbox() {
 
           <button
             onClick={() => {
-              setActiveTab('bgp')
+              handleTabSwitch('bgp')
               if (!bgpData) handleBgpLookup()
             }}
             className={`px-3 py-1.5 rounded text-xs mono uppercase transition-all flex items-center gap-1.5 whitespace-nowrap ${
@@ -854,7 +888,7 @@ export default function NetworkToolbox() {
           </button>
 
           <button
-            onClick={() => setActiveTab('fiber')}
+            onClick={() => handleTabSwitch('fiber')}
             className={`px-3 py-1.5 rounded text-xs mono uppercase transition-all flex items-center gap-1.5 whitespace-nowrap ${
               activeTab === 'fiber' 
                 ? 'bg-[#d4ff3f] text-[#08080a] font-bold shadow-[0_0_12px_rgba(212,255,63,0.3)]' 
@@ -867,7 +901,7 @@ export default function NetworkToolbox() {
 
           <button
             onClick={() => {
-              setActiveTab('mac')
+              handleTabSwitch('mac')
               if (!macResult) handleLookupMac()
             }}
             className={`px-3 py-1.5 rounded text-xs mono uppercase transition-all flex items-center gap-1.5 whitespace-nowrap ${
@@ -881,7 +915,7 @@ export default function NetworkToolbox() {
           </button>
 
           <button
-            onClick={() => setActiveTab('superlogout')}
+            onClick={() => handleTabSwitch('superlogout')}
             className={`px-3 py-1.5 rounded text-xs mono uppercase transition-all flex items-center gap-1.5 whitespace-nowrap ${
               activeTab === 'superlogout' 
                 ? 'bg-rose-500 text-white font-bold shadow-[0_0_14px_rgba(244,63,94,0.4)]' 
@@ -893,7 +927,7 @@ export default function NetworkToolbox() {
           </button>
 
           <button
-            onClick={() => setActiveTab('subnet')}
+            onClick={() => handleTabSwitch('subnet')}
             className={`px-3 py-1.5 rounded text-xs mono uppercase transition-all flex items-center gap-1.5 whitespace-nowrap ${
               activeTab === 'subnet' 
                 ? 'bg-[#d4ff3f] text-[#08080a] font-bold shadow-[0_0_12px_rgba(212,255,63,0.3)]' 
@@ -905,7 +939,7 @@ export default function NetworkToolbox() {
           </button>
 
           <button
-            onClick={() => setActiveTab('breach')}
+            onClick={() => handleTabSwitch('breach')}
             className={`px-3 py-1.5 rounded text-xs mono uppercase transition-all flex items-center gap-1.5 whitespace-nowrap ${
               activeTab === 'breach' 
                 ? 'bg-[#d4ff3f] text-[#08080a] font-bold shadow-[0_0_12px_rgba(212,255,63,0.3)]' 
@@ -917,7 +951,7 @@ export default function NetworkToolbox() {
           </button>
 
           <button
-            onClick={() => setActiveTab('bandwidth')}
+            onClick={() => handleTabSwitch('bandwidth')}
             className={`px-3 py-1.5 rounded text-xs mono uppercase transition-all flex items-center gap-1.5 whitespace-nowrap ${
               activeTab === 'bandwidth' 
                 ? 'bg-[#d4ff3f] text-[#08080a] font-bold shadow-[0_0_12px_rgba(212,255,63,0.3)]' 
