@@ -23,32 +23,42 @@ import {
   Power,
   Skull,
   Radio,
-  Flame
+  Flame,
+  Trash2,
+  CheckSquare,
+  Square,
+  Database,
+  Sliders
 } from 'lucide-react'
 
 export default function NetworkToolbox() {
-  const [activeTab, setActiveTab] = useState('superlogout') // 'superlogout' | 'breach' | 'subnet' | 'dns' | 'bandwidth'
+  const [activeTab, setActiveTab] = useState('dns') // Default to Live DNS, superlogout is 3rd
 
-  // --- 1. SUPER LOGOUT (EMERGENCY SESSION TERMINATOR) ---
+  // --- 1. SELECTIVE EMERGENCY LOGOUT & CACHE PURGE ---
   const servicesList = [
-    { id: 'google', name: 'Google & Gmail', domain: 'google.com', url: 'https://www.google.com/accounts/Logout' },
-    { id: 'amazon', name: 'Amazon', domain: 'amazon.com', url: 'https://www.amazon.com/gp/flex/sign-out.html?action=sign-out' },
-    { id: 'github', name: 'GitHub', domain: 'github.com', url: 'https://github.com/logout' },
-    { id: 'dropbox', name: 'Dropbox', domain: 'dropbox.com', url: 'https://www.dropbox.com/logout' },
-    { id: 'netflix', name: 'Netflix', domain: 'netflix.com', url: 'https://www.netflix.com/Logout' },
-    { id: 'steam', name: 'Steam Community', domain: 'steamcommunity.com', url: 'https://steamcommunity.com/?action=doLogout' },
-    { id: 'microsoft', name: 'Microsoft / Live', domain: 'login.live.com', url: 'https://login.live.com/logout.srf' },
-    { id: 'wordpress', name: 'WordPress', domain: 'wordpress.com', url: 'https://wordpress.com/wp-login.php?action=logout' },
-    { id: 'yahoo', name: 'Yahoo', domain: 'yahoo.com', url: 'https://login.yahoo.com/config/login?.src=fpctx&logout=1' },
-    { id: 'soundcloud', name: 'SoundCloud', domain: 'soundcloud.com', url: 'https://soundcloud.com/logout' },
-    { id: 'tumblr', name: 'Tumblr', domain: 'tumblr.com', url: 'https://www.tumblr.com/logout' },
-    { id: 'vimeo', name: 'Vimeo', domain: 'vimeo.com', url: 'https://vimeo.com/log_out' },
-    { id: 'wikipedia', name: 'Wikipedia', domain: 'wikipedia.org', url: 'https://en.wikipedia.org/w/index.php?title=Special:UserLogout' },
-    { id: 'skype', name: 'Skype Web', domain: 'skype.com', url: 'https://secure.skype.com/account/logout' },
-    { id: 'youtube', name: 'YouTube', domain: 'youtube.com', url: 'https://www.youtube.com/logout' },
-    { id: 'ebay', name: 'eBay', domain: 'ebay.com', url: 'https://signin.ebay.com/ws/eBayISAPI.dll?SignIn' }
+    { id: 'google', name: 'Google & Gmail', domain: 'google.com', category: 'core', url: 'https://www.google.com/accounts/Logout' },
+    { id: 'amazon', name: 'Amazon', domain: 'amazon.com', category: 'core', url: 'https://www.amazon.com/gp/flex/sign-out.html?action=sign-out' },
+    { id: 'github', name: 'GitHub', domain: 'github.com', category: 'core', url: 'https://github.com/logout' },
+    { id: 'dropbox', name: 'Dropbox', domain: 'dropbox.com', category: 'cloud', url: 'https://www.dropbox.com/logout' },
+    { id: 'netflix', name: 'Netflix', domain: 'netflix.com', category: 'media', url: 'https://www.netflix.com/Logout' },
+    { id: 'steam', name: 'Steam Community', domain: 'steamcommunity.com', category: 'media', url: 'https://steamcommunity.com/?action=doLogout' },
+    { id: 'microsoft', name: 'Microsoft / Live', domain: 'login.live.com', category: 'core', url: 'https://login.live.com/logout.srf' },
+    { id: 'wordpress', name: 'WordPress', domain: 'wordpress.com', category: 'cloud', url: 'https://wordpress.com/wp-login.php?action=logout' },
+    { id: 'yahoo', name: 'Yahoo', domain: 'yahoo.com', category: 'core', url: 'https://login.yahoo.com/config/login?.src=fpctx&logout=1' },
+    { id: 'soundcloud', name: 'SoundCloud', domain: 'soundcloud.com', category: 'media', url: 'https://soundcloud.com/logout' },
+    { id: 'tumblr', name: 'Tumblr', domain: 'tumblr.com', category: 'media', url: 'https://www.tumblr.com/logout' },
+    { id: 'vimeo', name: 'Vimeo', domain: 'vimeo.com', category: 'media', url: 'https://vimeo.com/log_out' },
+    { id: 'wikipedia', name: 'Wikipedia', domain: 'wikipedia.org', category: 'cloud', url: 'https://en.wikipedia.org/w/index.php?title=Special:UserLogout' },
+    { id: 'skype', name: 'Skype Web', domain: 'skype.com', category: 'core', url: 'https://secure.skype.com/account/logout' },
+    { id: 'youtube', name: 'YouTube', domain: 'youtube.com', category: 'media', url: 'https://www.youtube.com/logout' },
+    { id: 'ebay', name: 'eBay', domain: 'ebay.com', category: 'core', url: 'https://signin.ebay.com/ws/eBayISAPI.dll?SignIn' }
   ]
 
+  const [selectedServices, setSelectedServices] = useState(
+    servicesList.reduce((acc, s) => ({ ...acc, [s.id]: true }), {})
+  )
+  const [purgeBrowserCache, setPurgeBrowserCache] = useState(true)
+  const [cachePurgedStatus, setCachePurgedStatus] = useState(false)
   const [serviceStatuses, setServiceStatuses] = useState(
     servicesList.reduce((acc, s) => ({ ...acc, [s.id]: 'idle' }), {})
   )
@@ -56,9 +66,31 @@ export default function NetworkToolbox() {
   const [confirmedKill, setConfirmedKill] = useState(false)
   const [purgedCount, setPurgedCount] = useState(0)
 
+  const selectedCount = Object.values(selectedServices).filter(Boolean).length
+
+  const toggleService = (id) => {
+    setSelectedServices(prev => ({ ...prev, [id]: !prev[id] }))
+    setConfirmedKill(false)
+  }
+
+  const selectAllServices = (val) => {
+    const updated = {}
+    servicesList.forEach(s => { updated[s.id] = val })
+    setSelectedServices(updated)
+    setConfirmedKill(false)
+  }
+
+  const selectCategoryPreset = (category) => {
+    const updated = {}
+    servicesList.forEach(s => {
+      updated[s.id] = s.category === category
+    })
+    setSelectedServices(updated)
+    setConfirmedKill(false)
+  }
+
   const triggerLogoutForService = (service) => {
     return new Promise((resolve) => {
-      // Create hidden image to dispatch GET logout request with browser credentials
       const img = document.createElement('img')
       img.className = 'hidden'
       img.style.display = 'none'
@@ -75,12 +107,17 @@ export default function NetworkToolbox() {
       img.src = `${service.url}?nocache=${Date.now()}`
       document.body.appendChild(img)
 
-      // Fallback timeout in case image loading hangs
       setTimeout(done, 1200)
     })
   }
 
   const handleExecuteSuperLogout = async () => {
+    const targets = servicesList.filter(s => selectedServices[s.id])
+    if (targets.length === 0 && !purgeBrowserCache) {
+      alert("Please select at least 1 platform or keep client cache purge selected.")
+      return
+    }
+
     if (!confirmedKill) {
       setConfirmedKill(true)
       return
@@ -89,15 +126,30 @@ export default function NetworkToolbox() {
     setLogoutRunning(true)
     setPurgedCount(0)
 
-    // Reset all to queued
-    const queued = {}
-    servicesList.forEach(s => { queued[s.id] = 'queued' })
-    setServiceStatuses(queued)
+    // Mark queued vs skipped
+    const initialStatuses = {}
+    servicesList.forEach(s => {
+      initialStatuses[s.id] = selectedServices[s.id] ? 'queued' : 'skipped'
+    })
+    setServiceStatuses(initialStatuses)
+
+    // Clear client cache and storages if selected
+    if (purgeBrowserCache) {
+      try {
+        localStorage.clear()
+        sessionStorage.clear()
+        if (typeof window !== 'undefined' && 'caches' in window) {
+          const cacheKeys = await caches.keys()
+          await Promise.all(cacheKeys.map(k => caches.delete(k)))
+        }
+        setCachePurgedStatus(true)
+      } catch (e) {}
+    }
 
     let completed = 0
 
-    // Concurrently trigger in batches to avoid browser connection choke
-    for (const service of servicesList) {
+    // Concurrently trigger selected services
+    for (const service of targets) {
       setServiceStatuses(prev => ({ ...prev, [service.id]: 'purging' }))
       await triggerLogoutForService(service)
       completed += 1
@@ -333,18 +385,18 @@ export default function NetworkToolbox() {
           </p>
         </div>
 
-        {/* Tab Navigation */}
+        {/* Tab Navigation (Reordered: DNS 1st, Privacy 2nd, Emergency Logout 3rd, Subnet 4th, Bandwidth 5th) */}
         <div className="flex items-center gap-1.5 p-1 rounded-lg bg-[#0e0e14] border border-[#20202a] self-start sm:self-auto overflow-x-auto max-w-full">
           <button
-            onClick={() => setActiveTab('superlogout')}
+            onClick={() => setActiveTab('dns')}
             className={`px-3 py-1.5 rounded text-xs mono uppercase transition-all flex items-center gap-1.5 whitespace-nowrap ${
-              activeTab === 'superlogout' 
-                ? 'bg-rose-500 text-white font-bold shadow-[0_0_14px_rgba(244,63,94,0.4)]' 
+              activeTab === 'dns' 
+                ? 'bg-[#d4ff3f] text-[#08080a] font-bold shadow-[0_0_12px_rgba(212,255,63,0.3)]' 
                 : 'text-[#888898] hover:text-white'
             }`}
           >
-            <Power className="w-3.5 h-3.5 text-white" />
-            <span>Super Logout</span>
+            <Globe className="w-3.5 h-3.5" />
+            <span>Live DNS</span>
           </button>
 
           <button
@@ -358,6 +410,18 @@ export default function NetworkToolbox() {
             <Lock className="w-3.5 h-3.5" />
             <span>Privacy Audit</span>
           </button>
+
+          <button
+            onClick={() => setActiveTab('superlogout')}
+            className={`px-3 py-1.5 rounded text-xs mono uppercase transition-all flex items-center gap-1.5 whitespace-nowrap ${
+              activeTab === 'superlogout' 
+                ? 'bg-rose-500 text-white font-bold shadow-[0_0_14px_rgba(244,63,94,0.4)]' 
+                : 'text-[#888898] hover:text-white'
+            }`}
+          >
+            <Power className="w-3.5 h-3.5" />
+            <span>Emergency Logout</span>
+          </button>
           
           <button
             onClick={() => setActiveTab('subnet')}
@@ -369,18 +433,6 @@ export default function NetworkToolbox() {
           >
             <Calculator className="w-3.5 h-3.5" />
             <span>CIDR Subnet</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('dns')}
-            className={`px-3 py-1.5 rounded text-xs mono uppercase transition-all flex items-center gap-1.5 whitespace-nowrap ${
-              activeTab === 'dns' 
-                ? 'bg-[#d4ff3f] text-[#08080a] font-bold shadow-[0_0_12px_rgba(212,255,63,0.3)]' 
-                : 'text-[#888898] hover:text-white'
-            }`}
-          >
-            <Globe className="w-3.5 h-3.5" />
-            <span>Live DNS</span>
           </button>
 
           <button
@@ -397,7 +449,7 @@ export default function NetworkToolbox() {
         </div>
       </div>
 
-      {/* FEATURE 1: SUPER LOGOUT (EMERGENCY SESSION KILL SWITCH - INSPIRED BY SUPERLOGOUT.COM) */}
+      {/* FEATURE 3: SELECTIVE EMERGENCY LOGOUT & CLIENT CACHE PURGE */}
       {activeTab === 'superlogout' && (
         <div className="p-6 md:p-8 rounded-xl bg-[#0c0c12] border border-[#261f26] space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -407,13 +459,13 @@ export default function NetworkToolbox() {
               </span>
               <div>
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                  <span>Super Logout // Emergency Session Kill Switch</span>
+                  <span>Selective Emergency Logout & Cache Purge</span>
                   <span className="text-[10px] mono px-2 py-0.5 rounded bg-rose-950/60 text-rose-300 border border-rose-500/30 font-semibold">
-                    SUPERLOGOUT ARCHITECTURE
+                    CUSTOM KILL SWITCH
                   </span>
                 </h3>
                 <p className="text-xs text-[#8f8f9e] mono">
-                  Purge and terminate active browser sessions across 16+ top platforms with a single click.
+                  Choose specific platforms to log out from, or purge active sessions and local browser cache simultaneously.
                 </p>
               </div>
             </div>
@@ -421,7 +473,7 @@ export default function NetworkToolbox() {
             <div className="text-xs mono text-right">
               <span className="text-[#808092]">Status: </span>
               <strong className={logoutRunning ? "text-amber-400" : (purgedCount > 0 ? "text-emerald-400" : "text-[#d4ff3f]")}>
-                {logoutRunning ? `TERMINATING (${purgedCount}/${servicesList.length})` : (purgedCount > 0 ? `ALL PURGED (${purgedCount}/${servicesList.length})` : 'READY TO ENGAGE')}
+                {logoutRunning ? `PURGING (${purgedCount}/${selectedCount})` : (purgedCount > 0 ? `PURGE FINISHED (${purgedCount} SESSIONS)` : `${selectedCount} PLATFORMS READY`)}
               </strong>
             </div>
           </div>
@@ -430,19 +482,102 @@ export default function NetworkToolbox() {
           <div className="p-4 rounded-lg bg-rose-950/20 border border-rose-500/30 flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-rose-400 mt-0.5 flex-shrink-0" />
             <div className="text-xs text-[#d0c0c8] leading-relaxed">
-              <strong className="text-rose-300">Public Computer & Cyber Cafe Protection:</strong> When using shared workstations, university labs, or office laptops, leaving active logins behind allows unauthorized access. Super Logout dispatches authenticated session-kill signals across Google, Amazon, GitHub, Dropbox, Netflix, Steam, and others to lock down your accounts.
+              <strong className="text-rose-300">Selective Protection:</strong> You can choose exactly where you want to log out from. Check/uncheck individual platforms below, or use the quick filter buttons to target only auth providers, media accounts, or purge all at once.
+            </div>
+          </div>
+
+          {/* Browser Cache & Local Storage Purge Toggle Card */}
+          <div className="p-4 rounded-lg bg-[#111118] border border-[#232330] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <label className="flex items-center gap-3 cursor-pointer text-xs mono text-white select-none">
+              <input
+                type="checkbox"
+                checked={purgeBrowserCache}
+                onChange={(e) => setPurgeBrowserCache(e.target.checked)}
+                disabled={logoutRunning}
+                className="w-4 h-4 rounded accent-rose-500 cursor-pointer"
+              />
+              <div className="flex items-center gap-2">
+                <Database className="w-4 h-4 text-rose-400 flex-shrink-0" />
+                <span>Also Purge Browser LocalStorage, SessionStorage & Cache Storage</span>
+              </div>
+            </label>
+
+            <div className="text-xs mono">
+              {cachePurgedStatus ? (
+                <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold flex items-center gap-1">
+                  <Check className="w-3.5 h-3.5" /> CLIENT CACHE PURGED
+                </span>
+              ) : (
+                <span className={`text-[11px] ${purgeBrowserCache ? 'text-[#d4ff3f]' : 'text-[#6e6e80]'}`}>
+                  {purgeBrowserCache ? '● Cache Arming Active' : '○ Cache Purge Excluded'}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Quick Selection Presets Toolbar */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-[#1d1d28]">
+            <div className="flex flex-wrap items-center gap-2 text-xs mono">
+              <span className="text-[#888899]">Quick Select:</span>
+              <button
+                type="button"
+                onClick={() => selectAllServices(true)}
+                disabled={logoutRunning}
+                className="px-2.5 py-1 rounded bg-[#161622] hover:bg-[#202030] text-[#a0a0b2] hover:text-white border border-[#242436] transition-colors"
+              >
+                Select All ({servicesList.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => selectAllServices(false)}
+                disabled={logoutRunning}
+                className="px-2.5 py-1 rounded bg-[#161622] hover:bg-[#202030] text-[#a0a0b2] hover:text-white border border-[#242436] transition-colors"
+              >
+                Deselect All
+              </button>
+              <button
+                type="button"
+                onClick={() => selectCategoryPreset('core')}
+                disabled={logoutRunning}
+                className="px-2.5 py-1 rounded bg-[#161622] hover:bg-[#202030] text-[#a0a0b2] hover:text-[#d4ff3f] border border-[#242436] transition-colors"
+              >
+                Core Auth (Google, MS, GitHub, Amazon)
+              </button>
+              <button
+                type="button"
+                onClick={() => selectCategoryPreset('media')}
+                disabled={logoutRunning}
+                className="px-2.5 py-1 rounded bg-[#161622] hover:bg-[#202030] text-[#a0a0b2] hover:text-[#d4ff3f] border border-[#242436] transition-colors"
+              >
+                Media & Entertainment (YouTube, Netflix, Steam...)
+              </button>
+            </div>
+
+            <div className="text-xs mono font-bold text-[#d4ff3f]">
+              {selectedCount} of {servicesList.length} Platforms Selected
             </div>
           </div>
 
           {/* Action Button Controls */}
-          <div className="flex flex-wrap items-center gap-4 pt-2">
+          <div className="flex flex-wrap items-center gap-4 pt-1">
             {!confirmedKill ? (
               <button
-                onClick={() => setConfirmedKill(true)}
-                className="px-6 py-3.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs mono rounded flex items-center gap-2 transition-all shadow-[0_0_20px_rgba(244,63,94,0.35)]"
+                onClick={() => {
+                  if (selectedCount === 0 && !purgeBrowserCache) {
+                    alert("Please select at least 1 platform or keep client cache purge enabled.")
+                    return
+                  }
+                  setConfirmedKill(true)
+                }}
+                disabled={logoutRunning || (selectedCount === 0 && !purgeBrowserCache)}
+                className={`px-6 py-3.5 font-bold text-xs mono rounded flex items-center gap-2 transition-all shadow-[0_0_20px_rgba(244,63,94,0.35)] ${
+                  selectedCount > 0 || purgeBrowserCache
+                    ? 'bg-rose-600 hover:bg-rose-500 text-white cursor-pointer'
+                    : 'bg-[#1b1b24] text-[#606070] cursor-not-allowed'
+                }`}
               >
                 <Power className="w-4 h-4" />
-                <span>ENGAGE EMERGENCY SUPER LOGOUT</span>
+                <span>ENGAGE LOGOUT ({selectedCount} PLATFORMS SELECTED)</span>
               </button>
             ) : (
               <div className="flex flex-wrap items-center gap-3">
@@ -452,7 +587,7 @@ export default function NetworkToolbox() {
                   className="px-6 py-3.5 bg-rose-500 hover:bg-rose-400 text-white font-extrabold text-xs mono rounded flex items-center gap-2 transition-all animate-pulse shadow-[0_0_25px_rgba(244,63,94,0.5)]"
                 >
                   {logoutRunning ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Skull className="w-4 h-4" />}
-                  <span>{logoutRunning ? `PURGING SESSIONS (${purgedCount}/${servicesList.length})...` : 'CONFIRM PURGE: LOG OUT OF ALL SITES NOW'}</span>
+                  <span>{logoutRunning ? `PURGING SESSIONS (${purgedCount}/${selectedCount})...` : `CONFIRM PURGE: LOG OUT OF ${selectedCount} SELECTED SITES NOW`}</span>
                 </button>
                 <button
                   onClick={() => setConfirmedKill(false)}
@@ -465,36 +600,50 @@ export default function NetworkToolbox() {
             )}
 
             <span className="text-xs mono text-[#6d6d7e]">
-              Targets: {servicesList.length} major consumer & developer platforms.
+              Selected targets receive cross-origin termination signals.
             </span>
           </div>
 
-          {/* Live Service Kill Matrix Grid */}
+          {/* Interactive Target Platform Grid with Individual Checkboxes */}
           <div className="pt-4 border-t border-[#1e1e28] space-y-3">
             <div className="flex items-center justify-between text-xs mono text-[#838394]">
-              <span>Active Target Registry:</span>
-              <span>{purgedCount} / {servicesList.length} Sessions Handled</span>
+              <span>Platform Target Registry (Click to Toggle):</span>
+              <span>{purgedCount} / {selectedCount} Selected Sessions Cleared</span>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
               {servicesList.map((svc) => {
+                const isSelected = !!selectedServices[svc.id]
                 const status = serviceStatuses[svc.id]
+
                 return (
                   <div 
                     key={svc.id}
-                    className={`p-3 rounded-lg border transition-all flex items-center justify-between gap-2 ${
+                    onClick={() => !logoutRunning && toggleService(svc.id)}
+                    className={`p-3 rounded-lg border transition-all flex items-center justify-between gap-2 cursor-pointer select-none ${
                       status === 'terminated' 
                         ? 'bg-emerald-950/20 border-emerald-500/40 text-emerald-200' 
                         : (status === 'purging' 
                             ? 'bg-amber-950/20 border-amber-500/40 text-amber-200 animate-pulse'
                             : (status === 'queued' 
                                 ? 'bg-[#151520] border-[#303042] text-[#8e8e9e]' 
-                                : 'bg-[#0f0f16] border-[#1d1d28] text-slate-300'))
+                                : (isSelected 
+                                    ? 'bg-[#13131c] border-[#322832] text-white hover:border-rose-500/50' 
+                                    : 'bg-[#0a0a0f] border-[#181822] text-[#555566] opacity-60')))
                     }`}
                   >
-                    <div className="truncate">
-                      <div className="font-bold text-xs truncate">{svc.name}</div>
-                      <div className="text-[10px] mono text-[#6e6e80] truncate">{svc.domain}</div>
+                    <div className="flex items-center gap-2 truncate">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => {}} // handled by parent onClick
+                        disabled={logoutRunning}
+                        className="w-3.5 h-3.5 rounded accent-rose-500 cursor-pointer flex-shrink-0"
+                      />
+                      <div className="truncate">
+                        <div className="font-bold text-xs truncate">{svc.name}</div>
+                        <div className="text-[10px] mono text-[#6e6e80] truncate">{svc.domain}</div>
+                      </div>
                     </div>
 
                     <div className="mono text-[10px] font-bold flex-shrink-0">
@@ -512,7 +661,14 @@ export default function NetworkToolbox() {
                         <span className="text-[#6c6c7d]">QUEUED</span>
                       )}
                       {status === 'idle' && (
-                        <span className="text-[#555566]">STANDBY</span>
+                        isSelected ? (
+                          <span className="text-rose-400 text-[10px]">SELECTED</span>
+                        ) : (
+                          <span className="text-[#555566] text-[10px]">EXCLUDED</span>
+                        )
+                      )}
+                      {status === 'skipped' && (
+                        <span className="text-[#555566] text-[10px]">SKIPPED</span>
                       )}
                     </div>
                   </div>
