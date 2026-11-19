@@ -22,6 +22,7 @@ import {
   Sparkles
 } from 'lucide-react'
 import NetworkCanvas from './components/NetworkCanvas'
+import NetworkToolbox from './components/NetworkToolbox'
 
 export default function App() {
   const [scrollProgress, setScrollProgress] = useState(0)
@@ -219,13 +220,14 @@ mgmt0          Ethernet    UP        1500    1Gbps      OOB Syslog / Zabbix`
             </span>
           </a>
 
-          <nav className="hidden md:flex items-center gap-8 text-xs mono tracking-wider uppercase text-[#9e9ea8]">
+          <nav className="hidden md:flex items-center gap-7 text-xs mono tracking-wider uppercase text-[#9e9ea8]">
             <a href="#about" className="hover:text-[#d4ff3f] transition-colors">01//About</a>
             <a href="#skills" className="hover:text-[#d4ff3f] transition-colors">02//Skills</a>
-            <a href="#experience" className="hover:text-[#d4ff3f] transition-colors">03//Experience</a>
+            <a href="#experience" className="hover:text-[#d4ff3f] transition-colors">03//Exp</a>
             <a href="#work" className="hover:text-[#d4ff3f] transition-colors">04//Labs</a>
-            <a href="#terminal" className="hover:text-[#d4ff3f] transition-colors text-[#d4ff3f]">05//CLI</a>
-            <a href="#contact" className="hover:text-[#d4ff3f] transition-colors">06//Contact</a>
+            <a href="#terminal" className="hover:text-[#d4ff3f] transition-colors">05//CLI</a>
+            <a href="#tools" className="hover:text-[#d4ff3f] transition-colors text-[#d4ff3f]">06//Tools</a>
+            <a href="#contact" className="hover:text-[#d4ff3f] transition-colors">07//Contact</a>
           </nav>
 
           <div className="hidden md:flex items-center gap-3">
@@ -254,8 +256,9 @@ mgmt0          Ethernet    UP        1500    1Gbps      OOB Syslog / Zabbix`
             <a href="#skills" onClick={() => setMobileMenuOpen(false)} className="block py-1.5 text-slate-300 hover:text-[#d4ff3f]">02// Skills</a>
             <a href="#experience" onClick={() => setMobileMenuOpen(false)} className="block py-1.5 text-slate-300 hover:text-[#d4ff3f]">03// Experience</a>
             <a href="#work" onClick={() => setMobileMenuOpen(false)} className="block py-1.5 text-slate-300 hover:text-[#d4ff3f]">04// Labs</a>
-            <a href="#terminal" onClick={() => setMobileMenuOpen(false)} className="block py-1.5 text-[#d4ff3f]">05// Live CLI</a>
-            <a href="#contact" onClick={() => setMobileMenuOpen(false)} className="block py-1.5 text-slate-300 hover:text-[#d4ff3f]">06// Contact</a>
+            <a href="#terminal" onClick={() => setMobileMenuOpen(false)} className="block py-1.5 text-slate-300 hover:text-[#d4ff3f]">05// Live CLI</a>
+            <a href="#tools" onClick={() => setMobileMenuOpen(false)} className="block py-1.5 text-[#d4ff3f]">06// Utility Tools</a>
+            <a href="#contact" onClick={() => setMobileMenuOpen(false)} className="block py-1.5 text-slate-300 hover:text-[#d4ff3f]">07// Contact</a>
           </div>
         )}
       </header>
@@ -559,9 +562,12 @@ mgmt0          Ethernet    UP        1500    1Gbps      OOB Syslog / Zabbix`
             </div>
           </section>
 
-          {/* 06 / CERTIFICATIONS & EDUCATION */}
+          {/* 06 / NETWORK & SECURITY TOOLBOX */}
+          <NetworkToolbox />
+
+          {/* 07 / CERTIFICATIONS & EDUCATION */}
           <section id="education" className="space-y-8 scroll-mt-24">
-            <p className="text-xs mono tracking-widest uppercase text-[#d4ff3f]">06 // Credentials</p>
+            <p className="text-xs mono tracking-widest uppercase text-[#d4ff3f]">07 // Credentials</p>
             <h2 className="text-3xl md:text-4xl font-bold tracking-tight">Accreditation & Industry Training.</h2>
 
             <div className="grid md:grid-cols-3 gap-6">
@@ -588,9 +594,9 @@ mgmt0          Ethernet    UP        1500    1Gbps      OOB Syslog / Zabbix`
             </div>
           </section>
 
-          {/* 07 / CONTACT */}
+          {/* 08 / CONTACT */}
           <section id="contact" className="space-y-8 scroll-mt-24 pt-8">
-            <p className="text-xs mono tracking-widest uppercase text-[#d4ff3f]">07 // Contact</p>
+            <p className="text-xs mono tracking-widest uppercase text-[#d4ff3f]">08 // Contact</p>
             
             <div className="p-8 md:p-14 rounded-2xl bg-gradient-to-b from-[#11111a] to-[#08080a] border border-[#232330] space-y-8">
               <div>
