@@ -448,8 +448,8 @@ round-trip min/avg/max/stddev = 0.584/0.603/0.628/0.017 ms`
           <section className="relative min-h-[75vh] md:min-h-[85vh] flex flex-col justify-center py-10 md:py-16 overflow-hidden">
             {/* 3D Clos Fabric Canvas (Like walana.tech) */}
             <div className="absolute inset-0 pointer-events-none">
+              <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_65%_60%_at_35%_50%,rgba(8,8,10,0.85),rgba(8,8,10,0.25)_65%,transparent)] pointer-events-none"></div>
               <NetworkCanvas />
-              <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_65%_60%_at_35%_50%,rgba(8,8,10,0.85),rgba(8,8,10,0.25)_65%,transparent)]"></div>
             </div>
 
             <div className="relative z-10 space-y-8 max-w-4xl">
