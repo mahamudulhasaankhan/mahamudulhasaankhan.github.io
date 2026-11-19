@@ -32,10 +32,72 @@ import NetworkCanvas from './components/NetworkCanvas'
 import NetworkToolbox from './components/NetworkToolbox'
 import ToolsPage from './pages/ToolsPage'
 
+// Cyberpunk Matrix Digital Rain Canvas for Terminal Easter Egg
+function MatrixRain() {
+  const canvasRef = useRef(null)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    let animationFrameId
+
+    const resize = () => {
+      if (canvas.parentElement) {
+        canvas.width = canvas.parentElement.clientWidth
+        canvas.height = canvas.parentElement.clientHeight
+      }
+    }
+    resize()
+    window.addEventListener('resize', resize)
+
+    const chars = '0123456789ABCDEF01BGP-AS138378-DWDM-JUNOS-100G-AMBERIT-OSPF-MPLS-DHAKA'
+    const fontSize = 12
+    const columns = Math.max(1, Math.floor(canvas.width / fontSize))
+    const drops = Array(columns).fill(1)
+
+    const draw = () => {
+      ctx.fillStyle = 'rgba(5, 5, 8, 0.15)'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+      ctx.fillStyle = '#00ff66'
+      ctx.font = `${fontSize}px monospace`
+
+      for (let i = 0; i < drops.length; i++) {
+        const text = chars[Math.floor(Math.random() * chars.length)]
+        ctx.fillStyle = Math.random() > 0.88 ? '#ffffff' : (Math.random() > 0.5 ? '#00ff66' : '#009933')
+        ctx.fillText(text, i * fontSize, drops[i] * fontSize)
+
+        if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+          drops[i] = 0
+        }
+        drops[i]++
+      }
+
+      animationFrameId = requestAnimationFrame(draw)
+    }
+
+    draw()
+
+    return () => {
+      window.removeEventListener('resize', resize)
+      cancelAnimationFrame(animationFrameId)
+    }
+  }, [])
+
+  return (
+    <canvas 
+      ref={canvasRef} 
+      className="absolute inset-0 pointer-events-none opacity-35 z-0" 
+    />
+  )
+}
+
 export default function App() {
   const [scrollProgress, setScrollProgress] = useState(0)
   const [activeSection, setActiveSection] = useState('')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [matrixMode, setMatrixMode] = useState(false)
 
   // SPA Route State ('home' | 'tools')
   const [currentPage, setCurrentPage] = useState(() => {
@@ -235,7 +297,29 @@ export default function App() {
   ping <host>             - Send ICMP echo requests (e.g. ping 8.8.8.8)
   traceroute <host>       - Trace packet hops to target IP
   whoami                  - Display engineer credentials and NOC access tier
+  matrix                  - [EASTER EGG] Trigger Cyberpunk Matrix Digital Rain
+  laser                   - [EASTER EGG] Fire 100G optical packet burst
+  dhaka                   - Inspect Dhaka BDIX & Amber IT transit interconnect
   clear                   - Clear screen buffer`
+    } else if (lower === 'matrix' || lower === 'matrix on' || lower === 'cyber') {
+      setMatrixMode(true)
+      response = `[+] INITIALIZING CYBERPUNK MATRIX DIGITAL RAIN STREAM...
+[+] OVERCLOCKING ROUTING ENGINE RE-S-1800x4 TO 5.2 GHz
+[+] INJECTING 100G DWDM PHOSPHOR PACKET STREAM: AMBER IT CORE-01
+[+] AS138378 BGP ROUTING MESH UNLOCKED
+[+] DIGITAL RAIN ACTIVE. Type 'matrix off' or 'exit' to restore standard Junos prompt.`
+    } else if (lower === 'matrix off' || (matrixMode && (lower === 'exit' || lower === 'quit'))) {
+      setMatrixMode(false)
+      response = `[-] Terminated Matrix digital rain stream. Restored standard Junos operational console.`
+    } else if (lower === 'laser' || lower === 'burst') {
+      response = `[⚡] OPTICAL DWDM LASER BURST FIRED!
+Transmitting 50 optical telemetry pulses across 100G Backbone (0.24ms RTT).
+Packet loss: 0.00% · Jitter: 0.02ms · Carrier State: NOMINAL.`
+    } else if (lower === 'dhaka' || lower === 'bdix') {
+      response = `Dhaka Internet Exchange (BDIX) Amber IT Interconnect:
+  Core PoP: Navana Tower, Gulshan-1, Dhaka
+  Upstream: NTT, Hurricane Electric, Tata Communications
+  Latency to BDIX Peering: 1.1ms · State: 100% OPERATIONAL`
     } else if (lower === 'whoami') {
       response = `user: mahamudul (Md Mahamudul Hassan Khan)
 role: Assistant System Engineer (Core-Access Team)
@@ -848,12 +932,37 @@ round-trip min/avg/max/stddev = 0.584/0.603/0.628/0.017 ms`
                   {cmd}
                 </button>
               ))}
+
+              {/* Special Cyber Easter Egg Buttons */}
+              <button
+                type="button"
+                onClick={() => executeCommand(matrixMode ? 'matrix off' : 'matrix')}
+                className={`px-2.5 py-1 rounded transition-all font-bold flex items-center gap-1.5 ${
+                  matrixMode
+                    ? 'bg-[#00ff66] text-[#08080a] shadow-[0_0_15px_#00ff66]'
+                    : 'bg-[#0b1c11] text-[#00ff66] border border-[#00ff66]/40 hover:bg-[#122e1c]'
+                }`}
+              >
+                <span>⚡ {matrixMode ? 'EXIT MATRIX' : 'MATRIX MODE'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => executeCommand('laser')}
+                className="px-2.5 py-1 rounded bg-[#0b1724] text-[#00f0ff] border border-[#00f0ff]/40 hover:bg-[#14263b] transition-all"
+              >
+                <span>✦ LASER BURST</span>
+              </button>
             </div>
 
             {/* Terminal Window Box */}
             <div 
               onClick={() => terminalInputRef.current?.focus()}
-              className="rounded-xl overflow-hidden bg-[#050507] border border-[#23232e] shadow-2xl cursor-text transition-all hover:border-[#383848]"
+              className={`rounded-xl overflow-hidden bg-[#050507] border transition-all cursor-text ${
+                matrixMode 
+                  ? 'border-[#00ff66]/70 shadow-[0_0_35px_rgba(0,255,102,0.25)]' 
+                  : 'border-[#23232e] shadow-2xl hover:border-[#383848]'
+              }`}
             >
               {/* Terminal Title Bar */}
               <div className="px-4 py-3 bg-[#0f0f15] border-b border-[#1f1f29] flex items-center justify-between select-none">
@@ -862,62 +971,76 @@ round-trip min/avg/max/stddev = 0.584/0.603/0.628/0.017 ms`
                   <div className="w-3 h-3 rounded-full bg-[#ffbd2e]"></div>
                   <div className="w-3 h-3 rounded-full bg-[#27c93f]"></div>
                   <span className="text-xs mono text-[#9595a8] ml-2">
-                    mahamudul@amberit-core01: ~ (Junos OS 22.4R2)
+                    {matrixMode ? 'mahamudul@matrix-core: ~ (RE-CYBERPUNK-ACTIVE)' : 'mahamudul@amberit-core01: ~ (Junos OS 22.4R2)'}
                   </span>
                 </div>
                 <div className="flex items-center gap-3 text-[10px] mono text-[#646478]">
-                  <span>RE-S-1800x4</span>
-                  <span>·</span>
-                  <span>SSH-2.0-OpenSSH_9.3</span>
+                  {matrixMode ? (
+                    <span className="text-[#00ff66] font-bold animate-pulse">100G PHOSPHOR RAIN ONLINE</span>
+                  ) : (
+                    <>
+                      <span>RE-S-1800x4</span>
+                      <span>·</span>
+                      <span>SSH-2.0-OpenSSH_9.3</span>
+                    </>
+                  )}
                 </div>
               </div>
 
               {/* Terminal Screen Body (Auto-scrolling stream where old commands move up) */}
-              <div className="p-4 md:p-6 font-mono text-xs md:text-sm space-y-3 min-h-[300px] max-h-[460px] overflow-y-auto">
-                {terminalHistory.map((line, idx) => (
-                  <div key={idx} className="leading-relaxed">
-                    {line.type === 'system' && (
-                      <div className="text-[#88889c] whitespace-pre-wrap">{line.text}</div>
-                    )}
-                    {line.type === 'command' && (
-                      <div className="flex items-center gap-2 text-white font-bold pt-2">
-                        <span className="text-[#d4ff3f] select-none">mahamudul@amberit-core01&gt;</span>
-                        <span className="text-white">{line.cmd}</span>
-                      </div>
-                    )}
-                    {line.type === 'response' && (
-                      <div className="whitespace-pre-wrap text-[#d1d1e0] pl-3 border-l-2 border-[#202030] my-1 font-mono text-[11px] md:text-xs">
-                        {line.text}
-                      </div>
-                    )}
-                    {line.type === 'error' && (
-                      <div className="whitespace-pre-wrap text-[#ff5f56] pl-3 border-l-2 border-[#ff5f56]/50 my-1 font-mono text-[11px] md:text-xs">
-                        {line.text}
-                      </div>
-                    )}
-                  </div>
-                ))}
+              <div className="relative p-4 md:p-6 font-mono text-xs md:text-sm space-y-3 min-h-[300px] max-h-[460px] overflow-y-auto">
+                {matrixMode && <MatrixRain />}
 
-                {/* Active Interactive Prompt Form (Stays in front at bottom) */}
-                <form onSubmit={handleTerminalSubmit} className="flex items-center gap-2 pt-2 text-white">
-                  <span className="text-[#d4ff3f] font-bold select-none whitespace-nowrap">
-                    mahamudul@amberit-core01&gt;
-                  </span>
-                  <input 
-                    ref={terminalInputRef}
-                    type="text"
-                    value={terminalInput}
-                    onChange={(e) => setTerminalInput(e.target.value)}
-                    onKeyDown={handleTerminalKeyDown}
-                    placeholder="type a junos command e.g. 'show bgp summary' or '?'..."
-                    className="flex-1 bg-transparent border-none outline-none font-mono text-xs md:text-sm text-white placeholder-[#505060]"
-                    autoComplete="off"
-                    spellCheck="false"
-                  />
-                  <span className="w-2 h-4 bg-[#d4ff3f] animate-pulse inline-block flex-shrink-0" />
-                </form>
+                <div className="relative z-10 space-y-3">
+                  {terminalHistory.map((line, idx) => (
+                    <div key={idx} className="leading-relaxed">
+                      {line.type === 'system' && (
+                        <div className="text-[#88889c] whitespace-pre-wrap">{line.text}</div>
+                      )}
+                      {line.type === 'command' && (
+                        <div className="flex items-center gap-2 text-white font-bold pt-2">
+                          <span className={matrixMode ? "text-[#00ff66] select-none" : "text-[#d4ff3f] select-none"}>
+                            {matrixMode ? "mahamudul@matrix-core#" : "mahamudul@amberit-core01>"}
+                          </span>
+                          <span className="text-white">{line.cmd}</span>
+                        </div>
+                      )}
+                      {line.type === 'response' && (
+                        <div className={`whitespace-pre-wrap pl-3 border-l-2 my-1 font-mono text-[11px] md:text-xs ${
+                          matrixMode ? 'text-[#a3ffbf] border-[#00ff66]/50' : 'text-[#d1d1e0] border-[#202030]'
+                        }`}>
+                          {line.text}
+                        </div>
+                      )}
+                      {line.type === 'error' && (
+                        <div className="whitespace-pre-wrap text-[#ff5f56] pl-3 border-l-2 border-[#ff5f56]/50 my-1 font-mono text-[11px] md:text-xs">
+                          {line.text}
+                        </div>
+                      )}
+                    </div>
+                  ))}
 
-                <div ref={terminalEndRef} />
+                  {/* Active Interactive Prompt Form (Stays in front at bottom) */}
+                  <form onSubmit={handleTerminalSubmit} className="flex items-center gap-2 pt-2 text-white">
+                    <span className={`font-bold select-none whitespace-nowrap ${matrixMode ? 'text-[#00ff66]' : 'text-[#d4ff3f]'}`}>
+                      {matrixMode ? 'mahamudul@matrix-core#' : 'mahamudul@amberit-core01>'}
+                    </span>
+                    <input 
+                      ref={terminalInputRef}
+                      type="text"
+                      value={terminalInput}
+                      onChange={(e) => setTerminalInput(e.target.value)}
+                      onKeyDown={handleTerminalKeyDown}
+                      placeholder={matrixMode ? "matrix mode active. type 'matrix off' to restore..." : "type a junos command e.g. 'show bgp summary', 'matrix', 'laser'..."}
+                      className="flex-1 bg-transparent border-none outline-none font-mono text-xs md:text-sm text-white placeholder-[#505060]"
+                      autoComplete="off"
+                      spellCheck="false"
+                    />
+                    <span className={`w-2 h-4 animate-pulse inline-block flex-shrink-0 ${matrixMode ? 'bg-[#00ff66]' : 'bg-[#d4ff3f]'}`} />
+                  </form>
+
+                  <div ref={terminalEndRef} />
+                </div>
               </div>
             </div>
           </section>
