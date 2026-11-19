@@ -222,40 +222,79 @@ export default function NetworkToolbox() {
 
   const subnetInfo = calculateSubnet()
 
-  // --- 4. LIVE DNS RESOLVER ---
+  // --- 4. LIVE ALL-IN-ONE DNS RESOLVER ---
+  const DNS_RECORD_TYPES = ['A', 'AAAA', 'CNAME', 'MX', 'NS', 'TXT', 'SOA']
   const [dnsDomain, setDnsDomain] = useState('mahamudul.me')
-  const [dnsType, setDnsType] = useState('A')
   const [dnsLoading, setDnsLoading] = useState(false)
-  const [dnsRecords, setDnsRecords] = useState(null)
+  const [dnsGroupedRecords, setDnsGroupedRecords] = useState(null)
+  const [dnsFilter, setDnsFilter] = useState('ALL')
+  const [dnsCopiedVal, setDnsCopiedVal] = useState(null)
   const [dnsError, setDnsError] = useState(null)
 
-  const handleDnsLookup = async (e) => {
-    e.preventDefault()
-    if (!dnsDomain) return
+  const handleDnsLookupAll = async (targetDomain) => {
+    const domainToQuery = targetDomain || dnsDomain
+    if (!domainToQuery) return
 
     setDnsLoading(true)
-    setDnsRecords(null)
+    setDnsGroupedRecords(null)
     setDnsError(null)
 
-    try {
-      const cleanDomain = dnsDomain.trim().replace(/^https?:\/\//, '').split('/')[0]
-      const res = await fetch(`https://cloudflare-dns.com/dns-query?name=${cleanDomain}&type=${dnsType}`, {
-        headers: { Accept: 'application/dns-json' }
-      })
-      const data = await res.json()
+    const cleanDomain = domainToQuery.trim().replace(/^https?:\/\//, '').split('/')[0]
 
-      if (data.Status === 0 && data.Answer) {
-        setDnsRecords(data.Answer)
-      } else if (data.Status === 3) {
-        setDnsError("Domain NXDOMAIN (Does not exist or has no records of this type)")
-      } else {
-        setDnsRecords([])
+    try {
+      const fetchPromises = DNS_RECORD_TYPES.map(async (type) => {
+        try {
+          const res = await fetch(`https://cloudflare-dns.com/dns-query?name=${cleanDomain}&type=${type}`, {
+            headers: { Accept: 'application/dns-json' }
+          })
+          const data = await res.json()
+          return {
+            type,
+            status: data.Status,
+            answers: (data.Status === 0 && Array.isArray(data.Answer)) ? data.Answer : []
+          }
+        } catch (e) {
+          return { type, status: -1, answers: [] }
+        }
+      })
+
+      const results = await Promise.all(fetchPromises)
+      
+      const grouped = {}
+      let totalCount = 0
+      let allFlat = []
+
+      results.forEach(({ type, answers }) => {
+        grouped[type] = answers
+        totalCount += answers.length
+        answers.forEach(item => {
+          allFlat.push({ ...item, recordType: type })
+        })
+      })
+
+      if (totalCount === 0 && results.some(r => r.status === 3)) {
+        setDnsError(`Domain "${cleanDomain}" returned NXDOMAIN (Non-Existent Domain).`)
       }
+
+      setDnsGroupedRecords({
+        domain: cleanDomain,
+        grouped,
+        all: allFlat,
+        totalCount
+      })
     } catch (err) {
-      setDnsError("Could not resolve DNS records. Check network connection.")
+      setDnsError("Failed to query global DNS resolvers. Check network connection.")
     } finally {
       setDnsLoading(false)
     }
+  }
+
+  const handleCopyDnsValue = (val) => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(val)
+    }
+    setDnsCopiedVal(val)
+    setTimeout(() => setDnsCopiedVal(null), 2000)
   }
 
   // --- 5. BANDWIDTH & TRANSFER TIME CALCULATOR ---
@@ -695,95 +734,198 @@ export default function NetworkToolbox() {
         </div>
       )}
 
-      {/* FEATURE 4: LIVE DNS RESOLVER */}
+      {/* FEATURE 4: FULL-STACK ALL-IN-ONE DNS RESOLVER */}
       {activeTab === 'dns' && (
         <div className="p-6 md:p-8 rounded-xl bg-[#0c0c12] border border-[#21212c] space-y-6">
-          <div className="flex items-center gap-3">
-            <span className="p-2 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-              <Globe className="w-5 h-5" />
-            </span>
-            <div>
-              <h3 className="text-lg font-bold text-white">Live DNS-over-HTTPS (DoH) Resolver</h3>
-              <p className="text-xs text-[#8f8f9e] mono">Directly query Cloudflare global anycast nameservers for real-time DNS resolution.</p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <span className="p-2 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                <Globe className="w-5 h-5" />
+              </span>
+              <div>
+                <h3 className="text-lg font-bold text-white">Full-Stack DNS-over-HTTPS (DoH) Resolver</h3>
+                <p className="text-xs text-[#8f8f9e] mono">Queries Cloudflare Anycast servers & resolves A, AAAA, CNAME, MX, NS, TXT & SOA all at once.</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-xs mono font-semibold self-start sm:self-auto">
+              <Zap className="w-3.5 h-3.5" />
+              <span>PARALLEL ALL-IN-ONE RESOLVER</span>
             </div>
           </div>
 
-          <form onSubmit={handleDnsLookup} className="flex flex-col sm:flex-row gap-3">
-            <div className="flex-1">
-              <input 
-                type="text"
-                required
-                value={dnsDomain}
-                onChange={(e) => setDnsDomain(e.target.value)}
-                placeholder="Domain name (e.g. mahamudul.me, google.com)"
-                className="w-full px-4 py-3 bg-[#13131c] border border-[#262634] rounded text-sm text-white placeholder-[#555566] focus:border-[#d4ff3f] outline-none mono"
-              />
+          <form onSubmit={(e) => { e.preventDefault(); handleDnsLookupAll(); }} className="space-y-3">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex-1">
+                <input 
+                  type="text"
+                  required
+                  value={dnsDomain}
+                  onChange={(e) => setDnsDomain(e.target.value)}
+                  placeholder="Domain name (e.g. mahamudul.me, google.com)"
+                  className="w-full px-4 py-3 bg-[#13131c] border border-[#262634] rounded text-sm text-white placeholder-[#555566] focus:border-[#d4ff3f] outline-none mono"
+                />
+              </div>
+
+              <button 
+                type="submit"
+                disabled={dnsLoading}
+                className="px-6 py-3 bg-[#d4ff3f] hover:bg-[#c2f02b] text-[#08080a] font-bold text-xs mono rounded flex items-center justify-center gap-2 transition-all shadow-[0_0_15px_rgba(212,255,63,0.25)] flex-shrink-0"
+              >
+                {dnsLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                <span>{dnsLoading ? 'RESOLVING ALL...' : 'RESOLVE ALL RECORDS'}</span>
+              </button>
             </div>
 
-            <select
-              value={dnsType}
-              onChange={(e) => setDnsType(e.target.value)}
-              className="px-4 py-3 bg-[#13131c] border border-[#262634] rounded text-sm text-white focus:border-[#d4ff3f] outline-none mono"
-            >
-              <option value="A">A (IPv4)</option>
-              <option value="AAAA">AAAA (IPv6)</option>
-              <option value="MX">MX (Mail Server)</option>
-              <option value="TXT">TXT (Verification)</option>
-              <option value="NS">NS (Nameservers)</option>
-              <option value="CNAME">CNAME (Alias)</option>
-            </select>
-
-            <button 
-              type="submit"
-              disabled={dnsLoading}
-              className="px-6 py-3 bg-[#d4ff3f] hover:bg-[#c2f02b] text-[#08080a] font-bold text-xs mono rounded flex items-center justify-center gap-2 transition-all shadow-[0_0_15px_rgba(212,255,63,0.25)]"
-            >
-              {dnsLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-              <span>{dnsLoading ? 'RESOLVING...' : 'RESOLVE'}</span>
-            </button>
+            {/* Quick Test Tags */}
+            <div className="flex flex-wrap items-center gap-2 text-xs mono text-[#7c7c8c]">
+              <span>Quick Test:</span>
+              {['mahamudul.me', 'google.com', 'cloudflare.com', 'github.com', 'amberit.com.bd'].map(d => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => {
+                    setDnsDomain(d)
+                    handleDnsLookupAll(d)
+                  }}
+                  className="px-2 py-0.5 rounded bg-[#161622] hover:bg-[#202030] text-[#a0a0b8] hover:text-[#d4ff3f] border border-[#252538] transition-colors"
+                >
+                  {d}
+                </button>
+              ))}
+            </div>
           </form>
 
           {dnsError && (
-            <div className="p-4 rounded bg-rose-950/20 border border-rose-500/30 text-rose-300 text-xs mono">
-              {dnsError}
+            <div className="p-4 rounded bg-rose-950/20 border border-rose-500/30 text-rose-300 text-xs mono flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+              <span>{dnsError}</span>
             </div>
           )}
 
-          {dnsRecords && (
-            <div className="space-y-3 pt-4 border-t border-[#1c1c24]">
-              <div className="text-xs mono text-[#9595a5] flex items-center justify-between">
-                <span>DNS Answers for <strong className="text-white">{dnsDomain}</strong> ({dnsType}):</span>
-                <span className="text-[#d4ff3f]">{dnsRecords.length} records returned</span>
+          {dnsGroupedRecords && (
+            <div className="space-y-4 pt-4 border-t border-[#1c1c24]">
+              {/* Filter Tabs Header */}
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setDnsFilter('ALL')}
+                    className={`px-3 py-1.5 rounded text-xs mono font-bold transition-all ${
+                      dnsFilter === 'ALL'
+                        ? 'bg-[#d4ff3f] text-[#08080a]'
+                        : 'bg-[#151520] text-[#8e8e9e] hover:text-white border border-[#252535]'
+                    }`}
+                  >
+                    ALL RECORDS ({dnsGroupedRecords.totalCount})
+                  </button>
+
+                  {DNS_RECORD_TYPES.map(type => {
+                    const count = dnsGroupedRecords.grouped[type]?.length || 0
+                    return (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => setDnsFilter(type)}
+                        className={`px-2.5 py-1.5 rounded text-xs mono font-bold transition-all ${
+                          dnsFilter === type
+                            ? 'bg-indigo-600 text-white'
+                            : count > 0 
+                              ? 'bg-[#161624] text-slate-200 hover:text-white border border-[#2b2b3f]' 
+                              : 'bg-[#111118] text-[#555566] border border-[#1b1b24]'
+                        }`}
+                      >
+                        {type} ({count})
+                      </button>
+                    )
+                  })}
+                </div>
+
+                <div className="text-xs mono text-[#888899]">
+                  Queried for <strong className="text-white">{dnsGroupedRecords.domain}</strong>
+                </div>
               </div>
 
-              {dnsRecords.length === 0 ? (
-                <div className="p-4 rounded bg-[#101018] text-xs text-[#808090] mono">
-                  No {dnsType} records found for this domain.
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs mono border border-[#22222e] rounded-lg overflow-hidden">
-                    <thead className="bg-[#14141d] text-[#808092]">
-                      <tr>
-                        <th className="p-3">Record Name</th>
-                        <th className="p-3">Type</th>
-                        <th className="p-3">TTL</th>
-                        <th className="p-3">Value / Data</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#1e1e29] bg-[#0c0c12]">
-                      {dnsRecords.map((r, i) => (
-                        <tr key={i} className="hover:bg-[#14141e] transition-colors">
-                          <td className="p-3 text-white">{r.name}</td>
-                          <td className="p-3 text-[#00f0ff] font-bold">{dnsType}</td>
-                          <td className="p-3 text-[#7f7f8f]">{r.TTL}s</td>
-                          <td className="p-3 text-[#d4ff3f] font-semibold">{r.data}</td>
+              {/* Records Display Table */}
+              {(() => {
+                const recordsToShow = dnsFilter === 'ALL'
+                  ? dnsGroupedRecords.all
+                  : (dnsGroupedRecords.grouped[dnsFilter] || []).map(r => ({ ...r, recordType: dnsFilter }))
+
+                if (recordsToShow.length === 0) {
+                  return (
+                    <div className="p-6 rounded-lg bg-[#101018] border border-[#1e1e28] text-center text-xs text-[#808090] mono">
+                      No {dnsFilter === 'ALL' ? '' : dnsFilter} records returned for this hostname.
+                    </div>
+                  )
+                }
+
+                return (
+                  <div className="overflow-x-auto border border-[#22222e] rounded-lg">
+                    <table className="w-full text-left text-xs mono">
+                      <thead className="bg-[#14141d] text-[#808092] border-b border-[#22222e]">
+                        <tr>
+                          <th className="p-3">Type</th>
+                          <th className="p-3">Name</th>
+                          <th className="p-3">TTL</th>
+                          <th className="p-3">Value / Data</th>
+                          <th className="p-3 text-right">Action</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                      </thead>
+                      <tbody className="divide-y divide-[#1e1e29] bg-[#0c0c12]">
+                        {recordsToShow.map((r, i) => {
+                          const type = r.recordType || 'A'
+                          const badgeColor = 
+                            type === 'A' ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' :
+                            type === 'AAAA' ? 'bg-teal-500/15 text-teal-300 border-teal-500/30' :
+                            type === 'CNAME' ? 'bg-amber-500/15 text-amber-300 border-amber-500/30' :
+                            type === 'MX' ? 'bg-purple-500/15 text-purple-300 border-purple-500/30' :
+                            type === 'NS' ? 'bg-blue-500/15 text-blue-300 border-blue-500/30' :
+                            type === 'TXT' ? 'bg-yellow-500/15 text-yellow-300 border-yellow-500/30' :
+                            'bg-pink-500/15 text-pink-300 border-pink-500/30'
+
+                          return (
+                            <tr key={i} className="hover:bg-[#14141e] transition-colors">
+                              <td className="p-3">
+                                <span className={`px-2 py-0.5 rounded text-[11px] font-bold border ${badgeColor}`}>
+                                  {type}
+                                </span>
+                              </td>
+                              <td className="p-3 text-white max-w-[180px] truncate" title={r.name}>
+                                {r.name}
+                              </td>
+                              <td className="p-3 text-[#7f7f8f]">{r.TTL}s</td>
+                              <td className="p-3 text-[#d4ff3f] font-mono break-all font-semibold max-w-md">
+                                {r.data}
+                              </td>
+                              <td className="p-3 text-right">
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopyDnsValue(r.data)}
+                                  className="p-1.5 rounded bg-[#161622] hover:bg-[#232333] text-[#8e8e9e] hover:text-[#d4ff3f] border border-[#232332] transition-colors inline-flex items-center gap-1"
+                                  title="Copy Record Data"
+                                >
+                                  {dnsCopiedVal === r.data ? (
+                                    <>
+                                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                      <span className="text-[10px] text-emerald-400">Copied</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Copy className="w-3.5 h-3.5" />
+                                      <span className="text-[10px]">Copy</span>
+                                    </>
+                                  )}
+                                </button>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )
+              })()}
             </div>
           )}
         </div>
