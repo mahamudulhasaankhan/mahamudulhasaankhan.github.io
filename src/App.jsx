@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { 
   Network, 
   Terminal as TerminalIcon, 
@@ -28,12 +28,23 @@ export default function App() {
   const [scrollProgress, setScrollProgress] = useState(0)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
-  // Interactive Terminal State
+  // Interactive Juniper Junos CLI Terminal State
   const [terminalInput, setTerminalInput] = useState('')
   const [terminalHistory, setTerminalHistory] = useState([
-    { type: 'system', text: "Core-Access RouterOS v7.14 [x86_64] -- Session Established." },
-    { type: 'system', text: "Type 'help' to see available diagnostic commands, or try 'ping', 'show bgp', 'whoami'." }
+    { 
+      type: 'system', 
+      text: `--- JUNOS 22.4R2-S1.4 Kernel 64-bit  JNPR-12.1-20230214.341142_builder_stable_12\nmahamudul@amberit-core01 (ttyd0)\n\nJUNOS Core-Access Routing Engine (RE-S-1800x4)\nConnected to Amber IT Ltd Core Routing Fabric.\nType 'help' or '?' for diagnostics, or run 'show bgp summary', 'show interfaces terse', 'show route', 'whoami'.`
+    }
   ])
+  const [pastCommands, setPastCommands] = useState([])
+  const [historyIndex, setHistoryIndex] = useState(-1)
+  const terminalEndRef = useRef(null)
+  const terminalInputRef = useRef(null)
+
+  // Auto-scroll terminal so new prompt stays in front and old commands scroll up
+  useEffect(() => {
+    terminalEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [terminalHistory])
 
   // Calculate packet scroll progress
   useEffect(() => {
@@ -48,84 +59,161 @@ export default function App() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  const handleTerminalSubmit = (e) => {
-    e.preventDefault()
-    const cmd = terminalInput.trim().toLowerCase()
+  const executeCommand = (cmdRaw) => {
+    const cmd = cmdRaw.trim()
     if (!cmd) return
 
-    const newHistory = [...terminalHistory, { type: 'user', text: `$ ${terminalInput}` }]
+    setPastCommands(prev => [...prev, cmd])
+    setHistoryIndex(-1)
 
-    switch (cmd) {
-      case 'help':
-        newHistory.push({
-          type: 'response',
-          text: `Available commands:
-  • whoami          - Display engineer identity & credentials
-  • show bgp        - Inspect BGP peering status & routing table
-  • show interfaces - View core-access interface status
-  • ping amber-it   - Test low-latency ICMP packet transmission
-  • clear           - Clear terminal buffer`
-        })
-        break
-      case 'whoami':
-        newHistory.push({
-          type: 'response',
-          text: `[ENGINEER DOSSIER]
-  Name     : Md Mahamudul Hassan (Shihab) Khan
-  Role     : Assistant System Engineer (Core-Access Team)
-  Company  : Amber IT Ltd (Gulshan, Dhaka)
-  Focus    : MikroTik, Juniper, Cisco, Enterprise Linux & Centralized Logs
-  Status   : Online & Monitoring Core Traffic`
-        })
-        break
-      case 'show bgp':
-        newHistory.push({
-          type: 'response',
-          text: `BGP router identifier 103.250.x.x, local AS number 58715
-Neighbor        V    AS    MsgRcvd MsgSent  Up/Down    State/PfxRcd
-Upstream-IX-1   4  24151   492812  381921   98d14h     Established (849,210)
-IIG-Primary     4  58717   610291  482910   120d04h    Established (Full-Table)
-Peering-Core    4  58715   891230  891200   240d18h    Established (Internal)`
-        })
-        break
-      case 'show interfaces':
-        newHistory.push({
-          type: 'response',
-          text: `Interface      Type        Status    MTU     Speed      In/Out Traffic
-xe-0/0/0       Fiber-10G   UP        9192    10Gbps     6.8G / 8.2G (99.98% up)
-xe-0/0/1       Fiber-10G   UP        9192    10Gbps     4.1G / 5.4G (Line Rate)
-vlan-100-core  VLAN        UP        1500    10Gbps     Routed Access
-mgmt0          Ethernet    UP        1500    1Gbps      OOB Syslog / Zabbix`
-        })
-        break
-      case 'ping':
-      case 'ping amber-it':
-      case 'ping mahamudul.me':
-        newHistory.push({
-          type: 'response',
-          text: `PING core.amberit.com.bd (103.250.x.x) 56(84) bytes of data.
-64 bytes from core.amberit.com.bd: icmp_seq=1 ttl=62 time=0.82 ms
-64 bytes from core.amberit.com.bd: icmp_seq=2 ttl=62 time=0.91 ms
-64 bytes from core.amberit.com.bd: icmp_seq=3 ttl=62 time=0.84 ms
-64 bytes from core.amberit.com.bd: icmp_seq=4 ttl=62 time=0.79 ms
+    const lower = cmd.toLowerCase()
 
---- core.amberit.com.bd ping statistics ---
-4 packets transmitted, 4 received, 0% packet loss, rtt min/avg/max = 0.79/0.84/0.91 ms`
-        })
-        break
-      case 'clear':
-        setTerminalHistory([])
-        setTerminalInput('')
-        return
-      default:
-        newHistory.push({
-          type: 'error',
-          text: `Command '${cmd}' not recognized. Type 'help' for diagnostics menu.`
-        })
+    if (lower === 'clear') {
+      setTerminalHistory([])
+      setTerminalInput('')
+      return
     }
 
-    setTerminalHistory(newHistory)
+    let response = ''
+    let isError = false
+
+    if (lower === 'help' || lower === '?') {
+      response = `Juniper Networks Junos OS Operational Diagnostics:
+  show bgp summary        - Inspect BGP peers, ASNs, received prefix counts
+  show interfaces terse   - View 10G/100G fiber interfaces & transit statuses
+  show route              - Display inet.0 active routing table entries
+  show chassis hardware   - Display MX960 modular chassis, RE, and MPC cards
+  show system uptime      - Display routing engine uptime and load averages
+  show version            - Display Junos software release & kernel info
+  ping <host>             - Send ICMP echo requests (e.g. ping 8.8.8.8)
+  traceroute <host>       - Trace packet hops to target IP
+  whoami                  - Display engineer credentials and NOC access tier
+  clear                   - Clear screen buffer`
+    } else if (lower === 'whoami') {
+      response = `user: mahamudul (Md Mahamudul Hassan Khan)
+role: Assistant System Engineer (Core-Access Team)
+company: Amber IT Ltd (Navana Tower, Gulshan-1, Dhaka)
+class: super-user (NOC Tier-2 / BGP Core Operations)
+authorizations: [routing-engine, firewall-filter, ldp-mpls, vlan-cross-connect]
+active-session: ttyd0 (SSH-2.0 via 103.250.64.254)`
+    } else if (lower.startsWith('show bgp')) {
+      response = `Groups: 3 Peers: 4 Down peers: 0
+Table          Tot Paths  Act Paths Suppressed    History Damp State Pending
+inet.0            849210     849210          0          0          0       0
+
+Peer                     AS      InPkt     OutPkt    OutQ   Flaps Last Up/Dwn State|#Active/Received/Accepted/Damped...
+103.250.64.1          24151     492812     381921       0       0     98d14h Establ
+  inet.0: 849210/849210/849210/0
+103.250.65.5          58717     610291     482910       0       0    120d04h Establ
+  inet.0: 849210/849210/849210/0
+10.100.0.2            58715     891230     891200       0       0    240d18h Establ
+  inet.0: 42/42/42/0 (Internal-iBGP Mesh)
+182.16.x.1            23688     321450     298100       0       0     45d12h Establ
+  inet.0: BDIX-Peering Established`
+    } else if (lower.startsWith('show int')) {
+      response = `Interface               Admin Link Proto    Local                 Remote
+ge-0/0/0                up    up
+ge-0/0/0.0              up    up   inet     103.250.64.1/24       (Amber-Access)
+xe-0/1/0                up    up
+xe-0/1/0.0              up    up   inet     10.100.0.1/30         (Core Transit 10G)
+xe-0/1/1                up    up
+xe-0/1/1.0              up    up   inet     10.100.0.5/30         (BDIX Peering 10G)
+et-0/0/0                up    up
+et-0/0/0.0              up    up   inet     172.16.0.1/30         (Carrier 100G Backbone)
+lo0.0                   up    up   inet     103.250.64.254        --> 0/0
+fxp0.0                  up    up   inet     192.168.10.254/24     (Out-of-Band MGMT)`
+    } else if (lower.startsWith('show route')) {
+      response = `inet.0: 849215 destinations, 849215 routes (849215 active, 0 holddown, 0 hidden)
++ = Active Route, - = Last Active, * = Both
+
+0.0.0.0/0          *[BGP/170] 120d 04:12:10, MED 100, localpref 100
+                    AS path: 58717 I, validation-state: valid
+                  > to 103.250.65.5 via xe-0/1/0.0
+103.250.64.0/24    *[Direct/0] 240d 18:22:04
+                  > via ge-0/0/0.0
+10.100.0.0/30      *[Direct/0] 240d 18:22:04
+                  > via xe-0/1/0.0
+103.250.64.254/32  *[Local/0] 240d 18:22:04
+                    Reject`
+    } else if (lower.startsWith('show chassis') || lower.startsWith('show hard')) {
+      response = `Hardware inventory:
+Item             Version  Part number  Serial number     Description
+Chassis                                JN94827101        MX960
+Midplane         REV 05   711-030999   AC1234567         Enhanced Midplane
+Routing Engine 0 REV 12   740-058375   901234567         RE-S-1800x4 (16GB RAM)
+CB 0             REV 08   710-021523   CA9876543         Control Board
+FPC 0            REV 32   750-053421   FP0987654         MPC7E 3D MRATE-12xQSFPP-XGE
+  MIC 0                   BUILTIN      BUILTIN           12x10GE / 4x100GE MIC
+Power Supply 0   Rev 06   740-028341   PS0128472         AC Power Supply (2520W)`
+    } else if (lower.startsWith('show sys') || lower.startsWith('show upt')) {
+      response = `Current time: 2026-11-19 16:15:32 BDT
+System booted: 2026-03-22 08:31:02 BDT (34w2d 07:44 ago)
+Protocols started: 2026-03-22 08:33:14 BDT (34w2d 07:42 ago)
+Last configured: 2026-11-18 21:14:02 BDT (19:01:30 ago) by mahamudul
+Uptime: 240 days, 7 hours, 44 minutes, 30 seconds
+Load averages: 0.14, 0.18, 0.22`
+    } else if (lower.startsWith('show ver')) {
+      response = `Hostname: amberit-core-pe01
+Model: mx960
+Junos: 22.4R2-S1.4
+JUNOS OS Kernel 64-bit  [20230214.341142_builder_stable_12]
+JUNOS Packet Forwarding Engine Support [20230214]
+JUNOS Routing Software Suite [20230214]`
+    } else if (lower.startsWith('ping')) {
+      const target = cmd.split(' ')[1] || '103.250.64.1'
+      response = `PING ${target} (${target}): 56 data bytes
+64 bytes from ${target}: icmp_seq=0 ttl=64 time=0.612 ms
+64 bytes from ${target}: icmp_seq=1 ttl=64 time=0.584 ms
+64 bytes from ${target}: icmp_seq=2 ttl=64 time=0.628 ms
+64 bytes from ${target}: icmp_seq=3 ttl=64 time=0.591 ms
+
+--- ${target} ping statistics ---
+4 packets transmitted, 4 packets received, 0% packet loss
+round-trip min/avg/max/stddev = 0.584/0.603/0.628/0.017 ms`
+    } else if (lower.startsWith('traceroute')) {
+      const target = cmd.split(' ')[1] || '8.8.8.8'
+      response = `traceroute to ${target} (${target}), 30 hops max, 52 byte packets
+ 1  10.100.0.1 (10.100.0.1)  0.312 ms  0.284 ms  0.298 ms
+ 2  103.250.64.1 (103.250.64.1)  0.784 ms  0.751 ms  0.722 ms
+ 3  103.250.65.5 (103.250.65.5)  1.124 ms  1.082 ms  1.054 ms
+ 4  ${target} (${target})  4.218 ms  4.182 ms  4.140 ms`
+    } else {
+      isError = true
+      response = `syntax error, expecting <command>: '${cmd}'\nType '?' or 'help' for summary of operational Junos commands.`
+    }
+
+    setTerminalHistory(prev => [
+      ...prev,
+      { type: 'command', cmd },
+      { type: isError ? 'error' : 'response', text: response }
+    ])
     setTerminalInput('')
+  }
+
+  const handleTerminalSubmit = (e) => {
+    e.preventDefault()
+    executeCommand(terminalInput)
+  }
+
+  const handleTerminalKeyDown = (e) => {
+    if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      if (pastCommands.length === 0) return
+      const nextIndex = historyIndex === -1 ? pastCommands.length - 1 : Math.max(0, historyIndex - 1)
+      setHistoryIndex(nextIndex)
+      setTerminalInput(pastCommands[nextIndex])
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      if (historyIndex === -1) return
+      const nextIndex = historyIndex + 1
+      if (nextIndex >= pastCommands.length) {
+        setHistoryIndex(-1)
+        setTerminalInput('')
+      } else {
+        setHistoryIndex(nextIndex)
+        setTerminalInput(pastCommands[nextIndex])
+      }
+    }
   }
 
   const caseStudies = [
@@ -502,63 +590,113 @@ mgmt0          Ethernet    UP        1500    1Gbps      OOB Syslog / Zabbix`
             </div>
           </section>
 
-          {/* 05 / INTERACTIVE TERMINAL (SUPERIOR TO WALANA.TECH) */}
-          <section id="terminal" className="space-y-8 scroll-mt-24">
-            <div className="flex items-center justify-between">
+          {/* 05 / JUNIPER JUNOS OS INTERACTIVE DIAGNOSTIC TERMINAL */}
+          <section id="terminal" className="space-y-6 scroll-mt-24">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <p className="text-xs mono tracking-widest uppercase text-[#d4ff3f]">05 // Live CLI Diagnostics</p>
-                <h2 className="text-3xl md:text-4xl font-bold tracking-tight mt-1">Interactive Diagnostic Console.</h2>
+                <p className="text-xs mono tracking-widest uppercase text-[#d4ff3f]">05 // Live Carrier CLI Diagnostics</p>
+                <h2 className="text-3xl md:text-4xl font-bold tracking-tight mt-1">Junos OS Operational Console.</h2>
               </div>
-              <div className="hidden sm:flex items-center gap-2 text-xs mono text-[#d4ff3f] bg-[#14141c] px-3 py-1.5 rounded border border-[#2b2b38]">
+              <div className="flex items-center gap-2 text-xs mono text-[#d4ff3f] bg-[#14141c] px-3 py-1.5 rounded border border-[#2b2b38] self-start sm:self-auto">
                 <Radio className="w-3.5 h-3.5 animate-pulse" />
-                <span>ONLINE · LIVE TELEMETRY</span>
+                <span>JUNIPER MX960 · ROUTING ENGINE 0</span>
               </div>
             </div>
 
-            <div className="rounded-xl overflow-hidden bg-[#050507] border border-[#23232e] shadow-2xl">
+            {/* Quick Command Suggestion Toolbar */}
+            <div className="flex flex-wrap items-center gap-2 text-xs mono text-[#838396]">
+              <span className="text-[#a0a0b2] font-semibold">Quick Junos Commands:</span>
+              {[
+                'show bgp summary',
+                'show interfaces terse',
+                'show route',
+                'show chassis hardware',
+                'show system uptime',
+                'show version',
+                'ping 8.8.8.8',
+                'whoami',
+                'clear'
+              ].map((cmd) => (
+                <button
+                  key={cmd}
+                  type="button"
+                  onClick={() => executeCommand(cmd)}
+                  className="px-2.5 py-1 rounded bg-[#12121a] hover:bg-[#1f1f2c] text-[#b0b0c5] hover:text-[#d4ff3f] border border-[#242434] transition-all hover:border-[#d4ff3f]/50"
+                >
+                  {cmd}
+                </button>
+              ))}
+            </div>
+
+            {/* Terminal Window Box */}
+            <div 
+              onClick={() => terminalInputRef.current?.focus()}
+              className="rounded-xl overflow-hidden bg-[#050507] border border-[#23232e] shadow-2xl cursor-text transition-all hover:border-[#383848]"
+            >
               {/* Terminal Title Bar */}
-              <div className="px-4 py-3 bg-[#0f0f15] border-b border-[#1f1f29] flex items-center justify-between">
+              <div className="px-4 py-3 bg-[#0f0f15] border-b border-[#1f1f29] flex items-center justify-between select-none">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-[#ff5f56]"></div>
                   <div className="w-3 h-3 rounded-full bg-[#ffbd2e]"></div>
                   <div className="w-3 h-3 rounded-full bg-[#27c93f]"></div>
-                  <span className="text-xs mono text-[#838392] ml-2">shihab@amberit-core-access:~#</span>
+                  <span className="text-xs mono text-[#9595a8] ml-2">
+                    mahamudul@amberit-core01: ~ (Junos OS 22.4R2)
+                  </span>
                 </div>
-                <span className="text-[10px] mono text-[#5d5d6d]">SSH-2.0-OpenSSH_9.3</span>
+                <div className="flex items-center gap-3 text-[10px] mono text-[#646478]">
+                  <span>RE-S-1800x4</span>
+                  <span>·</span>
+                  <span>SSH-2.0-OpenSSH_9.3</span>
+                </div>
               </div>
 
-              {/* Terminal Body */}
-              <div className="p-4 md:p-6 font-mono text-xs md:text-sm space-y-3 min-h-[260px] max-h-[380px] overflow-y-auto">
+              {/* Terminal Screen Body (Auto-scrolling stream where old commands move up) */}
+              <div className="p-4 md:p-6 font-mono text-xs md:text-sm space-y-3 min-h-[300px] max-h-[460px] overflow-y-auto">
                 {terminalHistory.map((line, idx) => (
-                  <div key={idx} className="whitespace-pre-wrap leading-relaxed">
-                    {line.type === 'system' && <span className="text-[#888898]">{line.text}</span>}
-                    {line.type === 'user' && <span className="text-[#00f0ff] font-bold">{line.text}</span>}
-                    {line.type === 'response' && <span className="text-[#d6d6e4]">{line.text}</span>}
-                    {line.type === 'error' && <span className="text-[#ff5f56]">{line.text}</span>}
+                  <div key={idx} className="leading-relaxed">
+                    {line.type === 'system' && (
+                      <div className="text-[#88889c] whitespace-pre-wrap">{line.text}</div>
+                    )}
+                    {line.type === 'command' && (
+                      <div className="flex items-center gap-2 text-white font-bold pt-2">
+                        <span className="text-[#d4ff3f] select-none">mahamudul@amberit-core01&gt;</span>
+                        <span className="text-white">{line.cmd}</span>
+                      </div>
+                    )}
+                    {line.type === 'response' && (
+                      <div className="whitespace-pre-wrap text-[#d1d1e0] pl-3 border-l-2 border-[#202030] my-1 font-mono text-[11px] md:text-xs">
+                        {line.text}
+                      </div>
+                    )}
+                    {line.type === 'error' && (
+                      <div className="whitespace-pre-wrap text-[#ff5f56] pl-3 border-l-2 border-[#ff5f56]/50 my-1 font-mono text-[11px] md:text-xs">
+                        {line.text}
+                      </div>
+                    )}
                   </div>
                 ))}
-              </div>
 
-              {/* Terminal Prompt Form */}
-              <form onSubmit={handleTerminalSubmit} className="p-3 bg-[#0a0a0f] border-t border-[#1a1a24] flex items-center gap-2">
-                <span className="text-[#d4ff3f] font-mono text-xs md:text-sm font-bold pl-2">$</span>
-                <input 
-                  type="text"
-                  value={terminalInput}
-                  onChange={(e) => setTerminalInput(e.target.value)}
-                  placeholder="type 'help', 'ping amber-it', 'show bgp', or 'whoami'..."
-                  className="flex-1 bg-transparent border-none outline-none font-mono text-xs md:text-sm text-white placeholder-[#454554]"
-                  autoComplete="off"
-                  spellCheck="false"
-                />
-                <button 
-                  type="submit" 
-                  className="px-3 py-1 bg-[#191924] hover:bg-[#252536] text-[#d4ff3f] rounded text-xs mono flex items-center gap-1"
-                >
-                  <span>EXEC</span>
-                  <CornerDownLeft className="w-3 h-3" />
-                </button>
-              </form>
+                {/* Active Interactive Prompt Form (Stays in front at bottom) */}
+                <form onSubmit={handleTerminalSubmit} className="flex items-center gap-2 pt-2 text-white">
+                  <span className="text-[#d4ff3f] font-bold select-none whitespace-nowrap">
+                    mahamudul@amberit-core01&gt;
+                  </span>
+                  <input 
+                    ref={terminalInputRef}
+                    type="text"
+                    value={terminalInput}
+                    onChange={(e) => setTerminalInput(e.target.value)}
+                    onKeyDown={handleTerminalKeyDown}
+                    placeholder="type a junos command e.g. 'show bgp summary' or '?'..."
+                    className="flex-1 bg-transparent border-none outline-none font-mono text-xs md:text-sm text-white placeholder-[#505060]"
+                    autoComplete="off"
+                    spellCheck="false"
+                  />
+                  <span className="w-2 h-4 bg-[#d4ff3f] animate-pulse inline-block flex-shrink-0" />
+                </form>
+
+                <div ref={terminalEndRef} />
+              </div>
             </div>
           </section>
 
