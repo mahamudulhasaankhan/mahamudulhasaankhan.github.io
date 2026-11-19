@@ -26,7 +26,19 @@ import NetworkToolbox from './components/NetworkToolbox'
 
 export default function App() {
   const [scrollProgress, setScrollProgress] = useState(0)
+  const [activeSection, setActiveSection] = useState('')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
+  // Navigation Items with IDs matching sections
+  const navItems = [
+    { id: 'about', label: '01//About', mobileLabel: '01// About' },
+    { id: 'skills', label: '02//Skills', mobileLabel: '02// Skills' },
+    { id: 'experience', label: '03//Exp', mobileLabel: '03// Experience' },
+    { id: 'work', label: '04//Labs', mobileLabel: '04// Labs' },
+    { id: 'terminal', label: '05//CLI', mobileLabel: '05// Live CLI' },
+    { id: 'tools', label: '06//Tools', mobileLabel: '06// Utility Tools' },
+    { id: 'contact', label: '07//Contact', mobileLabel: '07// Contact' }
+  ]
 
   // Interactive Juniper Junos CLI Terminal State
   const [terminalInput, setTerminalInput] = useState('')
@@ -46,16 +58,56 @@ export default function App() {
     terminalEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [terminalHistory])
 
-  // Calculate packet scroll progress
+  // Calculate packet scroll progress & active section scrollspy with dynamic URL updates
   useEffect(() => {
+    const sectionIds = ['about', 'skills', 'experience', 'work', 'terminal', 'tools', 'contact']
+
     const handleScroll = () => {
+      // 1. Calculate packet spine progress
       const totalScroll = document.documentElement.scrollHeight - window.innerHeight
       if (totalScroll > 0) {
         const currentProgress = (window.scrollY / totalScroll) * 100
         setScrollProgress(Math.min(100, Math.max(0, currentProgress)))
       }
+
+      // 2. Scrollspy calculation for active section
+      const scrollPosition = window.scrollY + 200 // header offset
+      let currentSection = ''
+
+      for (let i = sectionIds.length - 1; i >= 0; i--) {
+        const el = document.getElementById(sectionIds[i])
+        if (el) {
+          const top = el.offsetTop
+          if (scrollPosition >= top) {
+            currentSection = sectionIds[i]
+            break
+          }
+        }
+      }
+
+      // If at bottom of page, highlight contact
+      if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 70) {
+        currentSection = 'contact'
+      } else if (window.scrollY < 260) {
+        // At top hero section
+        currentSection = ''
+      }
+
+      setActiveSection(currentSection)
+
+      // 3. Dynamically update URL hash without jump or spamming history
+      if (currentSection) {
+        const targetHash = `#${currentSection}`
+        if (window.location.hash !== targetHash) {
+          window.history.replaceState(null, null, targetHash)
+        }
+      } else if (window.scrollY < 200 && window.location.hash) {
+        window.history.replaceState(null, null, window.location.pathname)
+      }
     }
+
     window.addEventListener('scroll', handleScroll, { passive: true })
+    handleScroll()
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
@@ -299,7 +351,16 @@ round-trip min/avg/max/stddev = 0.584/0.603/0.628/0.017 ms`
       {/* TOP NAVIGATION */}
       <header className="sticky top-0 z-30 bg-[#08080a]/80 backdrop-blur-md border-b border-[#1c1c24] pl-12 md:pl-24 pr-6 md:pr-12">
         <div className="max-w-6xl mx-auto h-16 flex items-center justify-between">
-          <a href="#" className="flex items-center gap-2 group">
+          <a 
+            href="#" 
+            onClick={() => {
+              setActiveSection('')
+              if (window.location.hash) {
+                window.history.replaceState(null, null, window.location.pathname)
+              }
+            }}
+            className="flex items-center gap-2 group"
+          >
             <span className="font-bold tracking-tight text-lg mono text-white">
               mahamudul<span className="text-[#d4ff3f]">.me</span>
             </span>
@@ -308,14 +369,27 @@ round-trip min/avg/max/stddev = 0.584/0.603/0.628/0.017 ms`
             </span>
           </a>
 
-          <nav className="hidden md:flex items-center gap-7 text-xs mono tracking-wider uppercase text-[#9e9ea8]">
-            <a href="#about" className="hover:text-[#d4ff3f] transition-colors">01//About</a>
-            <a href="#skills" className="hover:text-[#d4ff3f] transition-colors">02//Skills</a>
-            <a href="#experience" className="hover:text-[#d4ff3f] transition-colors">03//Exp</a>
-            <a href="#work" className="hover:text-[#d4ff3f] transition-colors">04//Labs</a>
-            <a href="#terminal" className="hover:text-[#d4ff3f] transition-colors">05//CLI</a>
-            <a href="#tools" className="hover:text-[#d4ff3f] transition-colors text-[#d4ff3f]">06//Tools</a>
-            <a href="#contact" className="hover:text-[#d4ff3f] transition-colors">07//Contact</a>
+          <nav className="hidden md:flex items-center gap-7 text-xs mono tracking-wider uppercase">
+            {navItems.map((item) => {
+              const isActive = activeSection === item.id
+              return (
+                <a 
+                  key={item.id}
+                  href={`#${item.id}`}
+                  onClick={() => setActiveSection(item.id)}
+                  className={`transition-all duration-150 relative py-1 ${
+                    isActive 
+                      ? 'text-[#d4ff3f] font-bold' 
+                      : 'text-[#9e9ea8] hover:text-[#d4ff3f]'
+                  }`}
+                >
+                  {item.label}
+                  {isActive && (
+                    <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#d4ff3f] shadow-[0_0_8px_#d4ff3f]" />
+                  )}
+                </a>
+              )
+            })}
           </nav>
 
           <div className="hidden md:flex items-center gap-3">
@@ -340,13 +414,26 @@ round-trip min/avg/max/stddev = 0.584/0.603/0.628/0.017 ms`
 
         {mobileMenuOpen && (
           <div className="md:hidden py-4 border-t border-[#1c1c24] space-y-2 mono text-xs uppercase">
-            <a href="#about" onClick={() => setMobileMenuOpen(false)} className="block py-1.5 text-slate-300 hover:text-[#d4ff3f]">01// About</a>
-            <a href="#skills" onClick={() => setMobileMenuOpen(false)} className="block py-1.5 text-slate-300 hover:text-[#d4ff3f]">02// Skills</a>
-            <a href="#experience" onClick={() => setMobileMenuOpen(false)} className="block py-1.5 text-slate-300 hover:text-[#d4ff3f]">03// Experience</a>
-            <a href="#work" onClick={() => setMobileMenuOpen(false)} className="block py-1.5 text-slate-300 hover:text-[#d4ff3f]">04// Labs</a>
-            <a href="#terminal" onClick={() => setMobileMenuOpen(false)} className="block py-1.5 text-slate-300 hover:text-[#d4ff3f]">05// Live CLI</a>
-            <a href="#tools" onClick={() => setMobileMenuOpen(false)} className="block py-1.5 text-[#d4ff3f]">06// Utility Tools</a>
-            <a href="#contact" onClick={() => setMobileMenuOpen(false)} className="block py-1.5 text-slate-300 hover:text-[#d4ff3f]">07// Contact</a>
+            {navItems.map((item) => {
+              const isActive = activeSection === item.id
+              return (
+                <a 
+                  key={item.id}
+                  href={`#${item.id}`}
+                  onClick={() => {
+                    setActiveSection(item.id)
+                    setMobileMenuOpen(false)
+                  }}
+                  className={`block py-1.5 transition-colors ${
+                    isActive
+                      ? 'text-[#d4ff3f] font-bold pl-2 border-l-2 border-[#d4ff3f]'
+                      : 'text-slate-300 hover:text-[#d4ff3f]'
+                  }`}
+                >
+                  {item.mobileLabel}
+                </a>
+              )
+            })}
           </div>
         )}
       </header>
