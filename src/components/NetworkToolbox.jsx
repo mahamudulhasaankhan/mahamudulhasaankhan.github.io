@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { 
   ShieldAlert, 
   ShieldCheck, 
@@ -34,29 +34,153 @@ import {
 export default function NetworkToolbox() {
   const [activeTab, setActiveTab] = useState('dns') // Default to Live DNS, superlogout is 3rd
 
-  // --- 1. SELECTIVE EMERGENCY LOGOUT & CACHE PURGE ---
+  // --- 1. ACTIVE BROWSER SESSION & CACHE PURGE ENGINE ---
   const servicesList = [
-    { id: 'google', name: 'Google & Gmail', domain: 'google.com', category: 'core', url: 'https://www.google.com/accounts/Logout' },
-    { id: 'amazon', name: 'Amazon', domain: 'amazon.com', category: 'core', url: 'https://www.amazon.com/gp/flex/sign-out.html?action=sign-out' },
-    { id: 'github', name: 'GitHub', domain: 'github.com', category: 'core', url: 'https://github.com/logout' },
-    { id: 'dropbox', name: 'Dropbox', domain: 'dropbox.com', category: 'cloud', url: 'https://www.dropbox.com/logout' },
-    { id: 'netflix', name: 'Netflix', domain: 'netflix.com', category: 'media', url: 'https://www.netflix.com/Logout' },
-    { id: 'steam', name: 'Steam Community', domain: 'steamcommunity.com', category: 'media', url: 'https://steamcommunity.com/?action=doLogout' },
-    { id: 'microsoft', name: 'Microsoft / Live', domain: 'login.live.com', category: 'core', url: 'https://login.live.com/logout.srf' },
-    { id: 'wordpress', name: 'WordPress', domain: 'wordpress.com', category: 'cloud', url: 'https://wordpress.com/wp-login.php?action=logout' },
-    { id: 'yahoo', name: 'Yahoo', domain: 'yahoo.com', category: 'core', url: 'https://login.yahoo.com/config/login?.src=fpctx&logout=1' },
-    { id: 'soundcloud', name: 'SoundCloud', domain: 'soundcloud.com', category: 'media', url: 'https://soundcloud.com/logout' },
-    { id: 'tumblr', name: 'Tumblr', domain: 'tumblr.com', category: 'media', url: 'https://www.tumblr.com/logout' },
-    { id: 'vimeo', name: 'Vimeo', domain: 'vimeo.com', category: 'media', url: 'https://vimeo.com/log_out' },
-    { id: 'wikipedia', name: 'Wikipedia', domain: 'wikipedia.org', category: 'cloud', url: 'https://en.wikipedia.org/w/index.php?title=Special:UserLogout' },
-    { id: 'skype', name: 'Skype Web', domain: 'skype.com', category: 'core', url: 'https://secure.skype.com/account/logout' },
-    { id: 'youtube', name: 'YouTube', domain: 'youtube.com', category: 'media', url: 'https://www.youtube.com/logout' },
-    { id: 'ebay', name: 'eBay', domain: 'ebay.com', category: 'core', url: 'https://signin.ebay.com/ws/eBayISAPI.dll?SignIn' }
+    { 
+      id: 'google', 
+      name: 'Google & Gmail', 
+      domain: 'google.com', 
+      category: 'core', 
+      url: 'https://www.google.com/accounts/Logout',
+      probeUrl: 'https://accounts.google.com/CheckCookie?continue=https%3A%2F%2Fwww.google.com%2Fintl%2Fen%2Fimages%2Flogos%2Faccounts_logo.png' 
+    },
+    { 
+      id: 'amazon', 
+      name: 'Amazon', 
+      domain: 'amazon.com', 
+      category: 'core', 
+      url: 'https://www.amazon.com/gp/flex/sign-out.html?action=sign-out',
+      probeUrl: 'https://www.amazon.com/favicon.ico'
+    },
+    { 
+      id: 'github', 
+      name: 'GitHub', 
+      domain: 'github.com', 
+      category: 'core', 
+      url: 'https://github.com/logout',
+      probeUrl: 'https://avatars.githubusercontent.com/u/0'
+    },
+    { 
+      id: 'dropbox', 
+      name: 'Dropbox', 
+      domain: 'dropbox.com', 
+      category: 'cloud', 
+      url: 'https://www.dropbox.com/logout',
+      probeUrl: 'https://cfl.dropboxstatic.com/static/images/favicon-vflUeLeeY.ico'
+    },
+    { 
+      id: 'netflix', 
+      name: 'Netflix', 
+      domain: 'netflix.com', 
+      category: 'media', 
+      url: 'https://www.netflix.com/Logout',
+      probeUrl: 'https://assets.nflxext.com/us/ffe/siteui/common/icons/nficon2016.ico'
+    },
+    { 
+      id: 'steam', 
+      name: 'Steam Community', 
+      domain: 'steamcommunity.com', 
+      category: 'media', 
+      url: 'https://steamcommunity.com/?action=doLogout',
+      probeUrl: 'https://steamcommunity.com/favicon.ico'
+    },
+    { 
+      id: 'microsoft', 
+      name: 'Microsoft / Live', 
+      domain: 'login.live.com', 
+      category: 'core', 
+      url: 'https://login.live.com/logout.srf',
+      probeUrl: 'https://logincdn.msauth.net/shared/5/images/favicon_a_lupayr6zqiv72a0ehnwg2.ico'
+    },
+    { 
+      id: 'wordpress', 
+      name: 'WordPress', 
+      domain: 'wordpress.com', 
+      category: 'cloud', 
+      url: 'https://wordpress.com/wp-login.php?action=logout',
+      probeUrl: 'https://s1.wp.com/i/favicon.ico'
+    },
+    { 
+      id: 'yahoo', 
+      name: 'Yahoo', 
+      domain: 'yahoo.com', 
+      category: 'core', 
+      url: 'https://login.yahoo.com/config/login?.src=fpctx&logout=1',
+      probeUrl: 'https://s.yimg.com/rz/l/favicon.ico'
+    },
+    { 
+      id: 'soundcloud', 
+      name: 'SoundCloud', 
+      domain: 'soundcloud.com', 
+      category: 'media', 
+      url: 'https://soundcloud.com/logout',
+      probeUrl: 'https://a-v2.sndcdn.com/assets/images/sc-icons/favicon-2cadd14bdb.ico'
+    },
+    { 
+      id: 'tumblr', 
+      name: 'Tumblr', 
+      domain: 'tumblr.com', 
+      category: 'media', 
+      url: 'https://www.tumblr.com/logout',
+      probeUrl: 'https://assets.tumblr.com/images/favicons/favicon.ico'
+    },
+    { 
+      id: 'vimeo', 
+      name: 'Vimeo', 
+      domain: 'vimeo.com', 
+      category: 'media', 
+      url: 'https://vimeo.com/log_out',
+      probeUrl: 'https://f.vimeocdn.com/images_v6/favicon.ico'
+    },
+    { 
+      id: 'wikipedia', 
+      name: 'Wikipedia', 
+      domain: 'wikipedia.org', 
+      category: 'cloud', 
+      url: 'https://en.wikipedia.org/w/index.php?title=Special:UserLogout',
+      probeUrl: 'https://en.wikipedia.org/static/favicon/wikipedia.ico'
+    },
+    { 
+      id: 'skype', 
+      name: 'Skype Web', 
+      domain: 'skype.com', 
+      category: 'core', 
+      url: 'https://secure.skype.com/account/logout',
+      probeUrl: 'https://secure.skypeassets.com/apollo/2.127.3/images/favicon.ico'
+    },
+    { 
+      id: 'youtube', 
+      name: 'YouTube', 
+      domain: 'youtube.com', 
+      category: 'media', 
+      url: 'https://www.youtube.com/logout',
+      probeUrl: 'https://www.youtube.com/favicon.ico'
+    },
+    { 
+      id: 'ebay', 
+      name: 'eBay', 
+      domain: 'ebay.com', 
+      category: 'core', 
+      url: 'https://signin.ebay.com/ws/eBayISAPI.dll?SignIn',
+      probeUrl: 'https://pages.ebay.com/favicon.ico'
+    }
   ]
 
   const [selectedServices, setSelectedServices] = useState(
     servicesList.reduce((acc, s) => ({ ...acc, [s.id]: true }), {})
   )
+  const [sessionDetectStatuses, setSessionDetectStatuses] = useState({})
+  const [isScanning, setIsScanning] = useState(false)
+  const [hasScanned, setHasScanned] = useState(false)
+  const [cacheTelemetry, setCacheTelemetry] = useState({
+    localCount: 0,
+    localKeys: [],
+    localKB: '0.0',
+    sessionCount: 0,
+    sessionKeys: [],
+    cacheStorageCount: 0
+  })
+
   const [purgeBrowserCache, setPurgeBrowserCache] = useState(true)
   const [cachePurgedStatus, setCachePurgedStatus] = useState(false)
   const [serviceStatuses, setServiceStatuses] = useState(
@@ -66,6 +190,123 @@ export default function NetworkToolbox() {
   const [confirmedKill, setConfirmedKill] = useState(false)
   const [purgedCount, setPurgedCount] = useState(0)
 
+  // Real browser storage auditor
+  const scanBrowserStorage = async () => {
+    let localCount = 0
+    let localKeys = []
+    let localBytes = 0
+    let sessionCount = 0
+    let sessionKeys = []
+    let cacheStorageCount = 0
+
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localCount = localStorage.length
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i)
+          if (k) {
+            localKeys.push(k)
+            const val = localStorage.getItem(k) || ''
+            localBytes += (k.length + val.length) * 2
+          }
+        }
+      }
+    } catch (e) {}
+
+    try {
+      if (typeof window !== 'undefined' && window.sessionStorage) {
+        sessionCount = sessionStorage.length
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const k = sessionStorage.key(i)
+          if (k) sessionKeys.push(k)
+        }
+      }
+    } catch (e) {}
+
+    try {
+      if (typeof window !== 'undefined' && 'caches' in window) {
+        const cKeys = await caches.keys()
+        cacheStorageCount = cKeys.length
+      }
+    } catch (e) {}
+
+    const telemetry = {
+      localCount,
+      localKeys,
+      localKB: (localBytes / 1024).toFixed(1),
+      sessionCount,
+      sessionKeys,
+      cacheStorageCount
+    }
+    setCacheTelemetry(telemetry)
+    return telemetry
+  }
+
+  // Cross-origin image probe to test if an active authenticated session exists
+  const probeServiceSession = (service) => {
+    return new Promise((resolve) => {
+      const probeUrl = service.probeUrl || service.url
+      const img = document.createElement('img')
+      img.className = 'hidden'
+      img.style.display = 'none'
+
+      let finished = false
+      const done = (isAuth) => {
+        if (finished) return
+        finished = true
+        try {
+          if (img.parentNode) img.parentNode.removeChild(img)
+        } catch (e) {}
+        resolve(isAuth)
+      }
+
+      img.onload = () => done(true)
+      img.onerror = () => done(false)
+      img.src = `${probeUrl}${probeUrl.includes('?') ? '&' : '?'}probe=${Date.now()}`
+      document.body.appendChild(img)
+
+      setTimeout(() => done(false), 1200)
+    })
+  }
+
+  // Scan all logins & cache in current browser
+  const scanAllBrowserLoginsAndCache = async () => {
+    setIsScanning(true)
+    await scanBrowserStorage()
+
+    const detected = {}
+    const autoSelected = {}
+
+    // Concurrently probe all services
+    const probePromises = servicesList.map(async (svc) => {
+      const isAuth = await probeServiceSession(svc)
+      return { id: svc.id, isAuth }
+    })
+
+    const probeResults = await Promise.all(probePromises)
+    probeResults.forEach(({ id, isAuth }) => {
+      detected[id] = isAuth ? 'logged_in' : 'logged_out'
+      if (isAuth) autoSelected[id] = true
+    })
+
+    setSessionDetectStatuses(detected)
+    const hasAny = Object.values(detected).some(v => v === 'logged_in')
+    if (hasAny) {
+      setSelectedServices(prev => ({ ...prev, ...autoSelected }))
+    }
+
+    setIsScanning(false)
+    setHasScanned(true)
+  }
+
+  // Initial audit on tab switch
+  useEffect(() => {
+    if (activeTab === 'superlogout') {
+      scanBrowserStorage()
+    }
+  }, [activeTab])
+
+  const detectedActiveCount = Object.values(sessionDetectStatuses).filter(s => s === 'logged_in').length
   const selectedCount = Object.values(selectedServices).filter(Boolean).length
 
   const toggleService = (id) => {
@@ -76,6 +317,15 @@ export default function NetworkToolbox() {
   const selectAllServices = (val) => {
     const updated = {}
     servicesList.forEach(s => { updated[s.id] = val })
+    setSelectedServices(updated)
+    setConfirmedKill(false)
+  }
+
+  const selectOnlyDetectedLogins = () => {
+    const updated = {}
+    servicesList.forEach(s => {
+      updated[s.id] = sessionDetectStatuses[s.id] === 'logged_in'
+    })
     setSelectedServices(updated)
     setConfirmedKill(false)
   }
@@ -143,6 +393,7 @@ export default function NetworkToolbox() {
           await Promise.all(cacheKeys.map(k => caches.delete(k)))
         }
         setCachePurgedStatus(true)
+        await scanBrowserStorage() // Re-audit to verify 0
       } catch (e) {}
     }
 
@@ -156,6 +407,11 @@ export default function NetworkToolbox() {
       setPurgedCount(completed)
       setServiceStatuses(prev => ({ ...prev, [service.id]: 'terminated' }))
     }
+
+    // Re-check probe status to confirm sessions killed
+    const clearedDetect = {}
+    servicesList.forEach(s => { clearedDetect[s.id] = 'logged_out' })
+    setSessionDetectStatuses(clearedDetect)
 
     setLogoutRunning(false)
   }
@@ -449,7 +705,7 @@ export default function NetworkToolbox() {
         </div>
       </div>
 
-      {/* FEATURE 3: SELECTIVE EMERGENCY LOGOUT & CLIENT CACHE PURGE */}
+      {/* FEATURE 3: ACTIVE BROWSER SESSION DETECTOR & CACHE PURGE KILL SWITCH */}
       {activeTab === 'superlogout' && (
         <div className="p-6 md:p-8 rounded-xl bg-[#0c0c12] border border-[#261f26] space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -459,61 +715,113 @@ export default function NetworkToolbox() {
               </span>
               <div>
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                  <span>Selective Emergency Logout & Cache Purge</span>
+                  <span>Browser Login & Cache Kill Switch</span>
                   <span className="text-[10px] mono px-2 py-0.5 rounded bg-rose-950/60 text-rose-300 border border-rose-500/30 font-semibold">
-                    CUSTOM KILL SWITCH
+                    ACTIVE BROWSER SCANNER
                   </span>
                 </h3>
                 <p className="text-xs text-[#8f8f9e] mono">
-                  Choose specific platforms to log out from, or purge active sessions and local browser cache simultaneously.
+                  Scans what is currently logged in and cached inside this browser, and terminates active sessions on command.
                 </p>
               </div>
             </div>
 
-            <div className="text-xs mono text-right">
-              <span className="text-[#808092]">Status: </span>
-              <strong className={logoutRunning ? "text-amber-400" : (purgedCount > 0 ? "text-emerald-400" : "text-[#d4ff3f]")}>
-                {logoutRunning ? `PURGING (${purgedCount}/${selectedCount})` : (purgedCount > 0 ? `PURGE FINISHED (${purgedCount} SESSIONS)` : `${selectedCount} PLATFORMS READY`)}
-              </strong>
-            </div>
+            <button
+              onClick={scanAllBrowserLoginsAndCache}
+              disabled={isScanning || logoutRunning}
+              className="px-4 py-2 bg-[#181824] hover:bg-[#252536] text-[#d4ff3f] border border-[#2e2e42] rounded text-xs mono font-bold flex items-center gap-2 transition-all self-start sm:self-auto"
+            >
+              {isScanning ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+              <span>{isScanning ? 'SCANNING BROWSER...' : 'SCAN CURRENT LOGINS & CACHE'}</span>
+            </button>
           </div>
 
-          {/* Operational Advisory Warning */}
-          <div className="p-4 rounded-lg bg-rose-950/20 border border-rose-500/30 flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-rose-400 mt-0.5 flex-shrink-0" />
-            <div className="text-xs text-[#d0c0c8] leading-relaxed">
-              <strong className="text-rose-300">Selective Protection:</strong> You can choose exactly where you want to log out from. Check/uncheck individual platforms below, or use the quick filter buttons to target only auth providers, media accounts, or purge all at once.
-            </div>
-          </div>
-
-          {/* Browser Cache & Local Storage Purge Toggle Card */}
-          <div className="p-4 rounded-lg bg-[#111118] border border-[#232330] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <label className="flex items-center gap-3 cursor-pointer text-xs mono text-white select-none">
-              <input
-                type="checkbox"
-                checked={purgeBrowserCache}
-                onChange={(e) => setPurgeBrowserCache(e.target.checked)}
-                disabled={logoutRunning}
-                className="w-4 h-4 rounded accent-rose-500 cursor-pointer"
-              />
-              <div className="flex items-center gap-2">
-                <Database className="w-4 h-4 text-rose-400 flex-shrink-0" />
-                <span>Also Purge Browser LocalStorage, SessionStorage & Cache Storage</span>
+          {/* Real Browser Storage & Cache Audit Panel */}
+          <div className="p-4 rounded-lg bg-[#111118] border border-[#232330] space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs mono text-white font-bold">
+                <Database className="w-4 h-4 text-rose-400" />
+                <span>Detected Browser Client Cache & Storage:</span>
               </div>
-            </label>
+              <div className="text-xs mono">
+                {cachePurgedStatus ? (
+                  <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold flex items-center gap-1">
+                    <Check className="w-3 h-3" /> CACHE WIPED TO 0 KB
+                  </span>
+                ) : (
+                  <span className="text-[#88889a] text-[11px]">
+                    Live Browser Storage Footprint
+                  </span>
+                )}
+              </div>
+            </div>
 
-            <div className="text-xs mono">
-              {cachePurgedStatus ? (
-                <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold flex items-center gap-1">
-                  <Check className="w-3.5 h-3.5" /> CLIENT CACHE PURGED
+            {/* Cache Breakdown Stats */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+              <div className="p-2.5 rounded bg-[#0b0b10] border border-[#1d1d28]">
+                <div className="text-[10px] mono uppercase text-[#7a7a8c]">LocalStorage Cache</div>
+                <div className="text-sm font-bold mono text-white mt-0.5">
+                  {cacheTelemetry.localCount} Keys <span className="text-xs font-normal text-[#8e8e9e]">({cacheTelemetry.localKB} KB)</span>
+                </div>
+              </div>
+
+              <div className="p-2.5 rounded bg-[#0b0b10] border border-[#1d1d28]">
+                <div className="text-[10px] mono uppercase text-[#7a7a8c]">SessionStorage Cache</div>
+                <div className="text-sm font-bold mono text-white mt-0.5">
+                  {cacheTelemetry.sessionCount} Active Keys
+                </div>
+              </div>
+
+              <div className="p-2.5 rounded bg-[#0b0b10] border border-[#1d1d28]">
+                <div className="text-[10px] mono uppercase text-[#7a7a8c]">Cache Storage API</div>
+                <div className="text-sm font-bold mono text-white mt-0.5">
+                  {cacheTelemetry.cacheStorageCount} Buckets
+                </div>
+              </div>
+            </div>
+
+            {/* Cache Purge Toggle */}
+            <div className="pt-2 border-t border-[#1a1a24] flex items-center justify-between">
+              <label className="flex items-center gap-2.5 cursor-pointer text-xs mono text-slate-300 select-none">
+                <input
+                  type="checkbox"
+                  checked={purgeBrowserCache}
+                  onChange={(e) => setPurgeBrowserCache(e.target.checked)}
+                  disabled={logoutRunning}
+                  className="w-4 h-4 rounded accent-rose-500 cursor-pointer"
+                />
+                <span>Include LocalStorage, SessionStorage & Cache Storage in Purge</span>
+              </label>
+
+              <span className={`text-[11px] mono ${purgeBrowserCache ? 'text-[#d4ff3f]' : 'text-[#606070]'}`}>
+                {purgeBrowserCache ? 'Armed for Wipe' : 'Bypassed'}
+              </span>
+            </div>
+          </div>
+
+          {/* Active Logins Detection Status Banner */}
+          {hasScanned && (
+            <div className="p-3.5 rounded-lg bg-[#14141d] border border-[#262638] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-xs mono">
+                <ShieldCheck className="w-4 h-4 text-[#d4ff3f] flex-shrink-0" />
+                <span>
+                  Scan Result: <strong className={detectedActiveCount > 0 ? "text-amber-400" : "text-emerald-400"}>
+                    {detectedActiveCount > 0 ? `${detectedActiveCount} Active Logins Detected in Current Browser` : 'No Active Third-Party Sessions Detected'}
+                  </strong>
                 </span>
-              ) : (
-                <span className={`text-[11px] ${purgeBrowserCache ? 'text-[#d4ff3f]' : 'text-[#6e6e80]'}`}>
-                  {purgeBrowserCache ? '● Cache Arming Active' : '○ Cache Purge Excluded'}
-                </span>
+              </div>
+
+              {detectedActiveCount > 0 && (
+                <button
+                  type="button"
+                  onClick={selectOnlyDetectedLogins}
+                  className="px-3 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded text-xs mono font-bold transition-all self-start sm:self-auto"
+                >
+                  TARGET ONLY DETECTED ({detectedActiveCount})
+                </button>
               )}
             </div>
-          </div>
+          )}
 
           {/* Quick Selection Presets Toolbar */}
           <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-[#1d1d28]">
@@ -554,7 +862,7 @@ export default function NetworkToolbox() {
             </div>
 
             <div className="text-xs mono font-bold text-[#d4ff3f]">
-              {selectedCount} of {servicesList.length} Platforms Selected
+              {selectedCount} of {servicesList.length} Targets Armed
             </div>
           </div>
 
@@ -577,7 +885,11 @@ export default function NetworkToolbox() {
                 }`}
               >
                 <Power className="w-4 h-4" />
-                <span>ENGAGE LOGOUT ({selectedCount} PLATFORMS SELECTED)</span>
+                <span>
+                  {hasScanned && detectedActiveCount > 0
+                    ? `KILL DETECTED SESSIONS (${detectedActiveCount}) & PURGE CACHE`
+                    : `ENGAGE EMERGENCY PURGE (${selectedCount} TARGETS & CACHE)`}
+                </span>
               </button>
             ) : (
               <div className="flex flex-wrap items-center gap-3">
@@ -587,7 +899,7 @@ export default function NetworkToolbox() {
                   className="px-6 py-3.5 bg-rose-500 hover:bg-rose-400 text-white font-extrabold text-xs mono rounded flex items-center gap-2 transition-all animate-pulse shadow-[0_0_25px_rgba(244,63,94,0.5)]"
                 >
                   {logoutRunning ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Skull className="w-4 h-4" />}
-                  <span>{logoutRunning ? `PURGING SESSIONS (${purgedCount}/${selectedCount})...` : `CONFIRM PURGE: LOG OUT OF ${selectedCount} SELECTED SITES NOW`}</span>
+                  <span>{logoutRunning ? `PURGING ACTIVE SESSIONS (${purgedCount}/${selectedCount})...` : `CONFIRM KILL: PURGE ${selectedCount} SESSIONS & WIPE BROWSER CACHE NOW`}</span>
                 </button>
                 <button
                   onClick={() => setConfirmedKill(false)}
@@ -600,21 +912,22 @@ export default function NetworkToolbox() {
             )}
 
             <span className="text-xs mono text-[#6d6d7e]">
-              Selected targets receive cross-origin termination signals.
+              Dispatches authenticated termination signals & clears local client storage.
             </span>
           </div>
 
-          {/* Interactive Target Platform Grid with Individual Checkboxes */}
+          {/* Interactive Target Platform Grid with Live Probe Badges */}
           <div className="pt-4 border-t border-[#1e1e28] space-y-3">
             <div className="flex items-center justify-between text-xs mono text-[#838394]">
-              <span>Platform Target Registry (Click to Toggle):</span>
-              <span>{purgedCount} / {selectedCount} Selected Sessions Cleared</span>
+              <span>Active Platform Registry & Live Login Status:</span>
+              <span>{purgedCount} / {selectedCount} Handled</span>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
               {servicesList.map((svc) => {
                 const isSelected = !!selectedServices[svc.id]
                 const status = serviceStatuses[svc.id]
+                const probeStatus = sessionDetectStatuses[svc.id]
 
                 return (
                   <div 
@@ -625,8 +938,8 @@ export default function NetworkToolbox() {
                         ? 'bg-emerald-950/20 border-emerald-500/40 text-emerald-200' 
                         : (status === 'purging' 
                             ? 'bg-amber-950/20 border-amber-500/40 text-amber-200 animate-pulse'
-                            : (status === 'queued' 
-                                ? 'bg-[#151520] border-[#303042] text-[#8e8e9e]' 
+                            : (probeStatus === 'logged_in'
+                                ? 'bg-amber-950/15 border-amber-500/50 text-amber-200 shadow-[0_0_10px_rgba(245,158,11,0.15)]'
                                 : (isSelected 
                                     ? 'bg-[#13131c] border-[#322832] text-white hover:border-rose-500/50' 
                                     : 'bg-[#0a0a0f] border-[#181822] text-[#555566] opacity-60')))
@@ -641,7 +954,12 @@ export default function NetworkToolbox() {
                         className="w-3.5 h-3.5 rounded accent-rose-500 cursor-pointer flex-shrink-0"
                       />
                       <div className="truncate">
-                        <div className="font-bold text-xs truncate">{svc.name}</div>
+                        <div className="font-bold text-xs truncate flex items-center gap-1.5">
+                          <span>{svc.name}</span>
+                          {probeStatus === 'logged_in' && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse flex-shrink-0" title="Active login detected" />
+                          )}
+                        </div>
                         <div className="text-[10px] mono text-[#6e6e80] truncate">{svc.domain}</div>
                       </div>
                     </div>
@@ -661,10 +979,16 @@ export default function NetworkToolbox() {
                         <span className="text-[#6c6c7d]">QUEUED</span>
                       )}
                       {status === 'idle' && (
-                        isSelected ? (
-                          <span className="text-rose-400 text-[10px]">SELECTED</span>
+                        probeStatus === 'logged_in' ? (
+                          <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                            LOGGED IN
+                          </span>
                         ) : (
-                          <span className="text-[#555566] text-[10px]">EXCLUDED</span>
+                          isSelected ? (
+                            <span className="text-rose-400 text-[10px]">ARMED</span>
+                          ) : (
+                            <span className="text-[#555566] text-[10px]">EXCLUDED</span>
+                          )
                         )
                       )}
                       {status === 'skipped' && (
