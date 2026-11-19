@@ -328,46 +328,48 @@ round-trip min/avg/max/stddev = 0.584/0.603/0.628/0.017 ms`
 
   return (
     <div className="relative min-h-screen bg-[#08080a] text-[#f4f4f2] selection:bg-[#d4ff3f] selection:text-[#08080a]">
-      {/* PACKET TRANSMISSION SPINE (Left Vertical Indicator like walana.tech) */}
-      <div className="fixed left-4 md:left-9 top-0 bottom-0 w-[2px] bg-[#1a1a20] z-40 pointer-events-none">
+      {/* PACKET TRANSMISSION SPINE (Anchored cleanly to viewport edge) */}
+      <div className="fixed left-0 top-0 bottom-0 w-[2px] bg-[#1a1a20] z-40 pointer-events-none">
         <div 
           className="absolute top-0 left-0 w-full bg-[#d4ff3f] transition-all duration-75 ease-out shadow-[0_0_12px_#d4ff3f]"
           style={{ height: `${scrollProgress}%` }}
         ></div>
         <div 
-          className="absolute -left-[4px] w-[10px] h-[10px] rounded-full bg-[#d4ff3f] shadow-[0_0_16px_#d4ff3f] glow-packet transition-all duration-75 ease-out"
+          className="absolute -left-[3px] w-[8px] h-[8px] rounded-full bg-[#d4ff3f] shadow-[0_0_16px_#d4ff3f] glow-packet transition-all duration-75 ease-out"
           style={{ top: `${scrollProgress}%` }}
         ></div>
       </div>
 
-      {/* Floating Telemetry Indicator */}
-      <div className="fixed left-8 md:left-14 top-5 z-40 hidden sm:flex items-center gap-2 text-[10px] mono tracking-widest uppercase bg-[#0e0e14]/90 backdrop-blur-md px-3 py-1 rounded border border-[#23232c] text-[#8e8e99]">
-        <span className="w-1.5 h-1.5 rounded-full bg-[#d4ff3f] animate-ping"></span>
-        <span>PACKET FLOW: <strong className="text-[#d4ff3f]">{Math.round(scrollProgress)}%</strong> TRANSMITTED</span>
-        <span className="text-[#3b3b47]">|</span>
-        <span>RTT: 1.2ms</span>
-      </div>
-
       {/* TOP NAVIGATION */}
-      <header className="sticky top-0 z-30 bg-[#08080a]/80 backdrop-blur-md border-b border-[#1c1c24] pl-12 md:pl-24 pr-6 md:pr-12">
+      <header className="sticky top-0 z-30 bg-[#08080a]/80 backdrop-blur-md border-b border-[#1c1c24] px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto h-16 flex items-center justify-between">
-          <a 
-            href="#" 
-            onClick={() => {
-              setActiveSection('')
-              if (window.location.hash) {
-                window.history.replaceState(null, null, window.location.pathname)
-              }
-            }}
-            className="flex items-center gap-2 group"
-          >
-            <span className="font-bold tracking-tight text-lg mono text-white">
-              mahamudul<span className="text-[#d4ff3f]">.me</span>
-            </span>
-            <span className="text-[10px] px-2 py-0.5 rounded bg-[#16161d] border border-[#2b2b36] text-[#d4ff3f] mono font-semibold">
-              CORE-NOC
-            </span>
-          </a>
+          <div className="flex items-center gap-3">
+            <a 
+              href="#" 
+              onClick={() => {
+                setActiveSection('')
+                if (window.location.hash) {
+                  window.history.replaceState(null, null, window.location.pathname)
+                }
+              }}
+              className="flex items-center gap-2 group"
+            >
+              <span className="font-bold tracking-tight text-lg mono text-white">
+                mahamudul<span className="text-[#d4ff3f]">.me</span>
+              </span>
+              <span className="text-[10px] px-2 py-0.5 rounded bg-[#16161d] border border-[#2b2b36] text-[#d4ff3f] mono font-semibold">
+                CORE-NOC
+              </span>
+            </a>
+
+            {/* Live Packet Telemetry Badge directly integrated in Header */}
+            <div className="hidden lg:flex items-center gap-2 text-[10px] mono uppercase bg-[#111118] px-2.5 py-1 rounded border border-[#22222e] text-[#8e8e99]">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#d4ff3f] animate-ping"></span>
+              <span>FLOW: <strong className="text-[#d4ff3f]">{Math.round(scrollProgress)}%</strong></span>
+              <span className="text-[#3b3b47]">|</span>
+              <span>1.2ms</span>
+            </div>
+          </div>
 
           <nav className="hidden md:flex items-center gap-7 text-xs mono tracking-wider uppercase">
             {navItems.map((item) => {
@@ -439,13 +441,13 @@ round-trip min/avg/max/stddev = 0.584/0.603/0.628/0.017 ms`
       </header>
 
       {/* MAIN CONTAINER */}
-      <div className="pl-12 md:pl-24 pr-6 md:pr-12">
+      <div className="px-4 sm:px-6 lg:px-8">
         <main className="max-w-6xl mx-auto space-y-32 py-12 md:py-20">
 
           {/* HERO SECTION WITH INTERACTIVE 3D NET3D TOPOLOGY */}
           <section className="relative min-h-[75vh] md:min-h-[85vh] flex flex-col justify-center py-10 md:py-16 overflow-hidden">
             {/* 3D Clos Fabric Canvas (Like walana.tech) */}
-            <div className="absolute inset-0 pointer-events-none -left-12 md:-left-24 -right-6 md:-right-12">
+            <div className="absolute inset-0 pointer-events-none">
               <NetworkCanvas />
               <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_65%_60%_at_35%_50%,rgba(8,8,10,0.85),rgba(8,8,10,0.25)_65%,transparent)]"></div>
             </div>
