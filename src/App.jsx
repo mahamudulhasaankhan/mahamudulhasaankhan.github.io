@@ -421,11 +421,27 @@ round-trip min/avg/max/stddev = 0.584/0.603/0.628/0.017 ms`
     }
   ]
 
+  // Prevent browser auto-jumping to #tools on fresh page reload
+  useEffect(() => {
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual'
+    }
+    const hash = window.location.hash
+    if (!hash.startsWith('#/tools')) {
+      if (hash === '#tools' || hash === '#/' || !hash) {
+        window.scrollTo(0, 0)
+        if (hash === '#tools') {
+          window.history.replaceState(null, null, window.location.pathname)
+        }
+      }
+    }
+  }, [])
+
   // Dedicated Standalone Tools Page View
   if (currentPage === 'tools') {
     return (
       <ToolsPage 
-        onBack={() => navigateToHome('tools')} 
+        onBack={() => navigateToHome('')} 
         initialTab={initialToolTab} 
       />
     )
