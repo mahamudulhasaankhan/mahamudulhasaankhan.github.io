@@ -95,8 +95,8 @@ function MatrixRain() {
 
 // Zero-Layout-Shift Binary Character Glitch Heading (Inspired by raifkaya.nl)
 function GlitchHeading() {
-  const line1 = "The strongest networks"
-  const line2Prefix = "are "
+  const line1 = "The strongest"
+  const line2Prefix = "networks are "
   const line2Highlight = "invisible."
 
   const [glitchState, setGlitchState] = useState({ index: -1, char: '0' })
@@ -156,9 +156,9 @@ function GlitchHeading() {
     })
   }
 
-  const line1Len = line1.length // 22
-  const line2PrefixLen = line2Prefix.length // 4 (offset: 23)
-  const line2HighlightOffset = line1Len + 1 + line2PrefixLen // 27
+  const line1Len = line1.length // 13
+  const line2PrefixLen = line2Prefix.length // 13 (offset: 14)
+  const line2HighlightOffset = line1Len + 1 + line2PrefixLen // 13 + 1 + 13 = 27
 
   return (
     <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight uppercase leading-[1.08]">
