@@ -50,7 +50,7 @@ export default function ToolsPage({ onBack, initialTab }) {
             </span>
             <div className="hidden sm:block">
               <span className="text-xs mono font-bold tracking-widest uppercase text-white">MAHAMUDUL // NOC TOOLBOX</span>
-              <span className="text-[10px] mono text-[#888898] ml-2 font-medium">9 ENGINES ONLINE · 100% CLIENT-SIDE</span>
+              <span className="text-[10px] mono text-[#888898] ml-2 font-medium">10 ENGINES ONLINE · 100% CLIENT-SIDE</span>
             </div>
           </div>
 

@@ -46,7 +46,7 @@ export default function NetworkToolbox({ isStandalone = false, onBack, initialTa
         const match = hash.match(/tab=([a-z0-9_-]+)/i)
         if (match) tab = match[1]
       }
-      if (tab && ['dns', 'latency', 'bgp', 'fiber', 'mac', 'superlogout', 'subnet', 'breach', 'bandwidth'].includes(tab)) {
+      if (tab && ['dns', 'latency', 'bgp', 'fiber', 'mac', 'superlogout', 'subnet', 'breach', 'bandwidth', 'otdr'].includes(tab)) {
         return tab
       }
     }
@@ -54,7 +54,7 @@ export default function NetworkToolbox({ isStandalone = false, onBack, initialTa
   })
 
   useEffect(() => {
-    if (initialTab && ['dns', 'latency', 'bgp', 'fiber', 'mac', 'superlogout', 'subnet', 'breach', 'bandwidth'].includes(initialTab)) {
+    if (initialTab && ['dns', 'latency', 'bgp', 'fiber', 'mac', 'superlogout', 'subnet', 'breach', 'bandwidth', 'otdr'].includes(initialTab)) {
       setActiveTab(initialTab)
     }
   }, [initialTab])
@@ -823,6 +823,139 @@ export default function NetworkToolbox({ isStandalone = false, onBack, initialTa
     })
   }
 
+  // --- 10. INTERACTIVE OPTICAL OTDR TRACE & FAULT DISTANCE LOCATOR ---
+  const [otdrDist, setOtdrDist] = useState(35) // km
+  const [otdrWavelength, setOtdrWavelength] = useState('1550') // '1310' | '1550'
+  const [otdrSimulateBreak, setOtdrSimulateBreak] = useState(true)
+  const [otdrBreakDist, setOtdrBreakDist] = useState(18.4) // km
+  const otdrCanvasRef = useRef(null)
+
+  useEffect(() => {
+    if (activeTab !== 'otdr') return
+    const canvas = otdrCanvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    const w = canvas.width
+    const h = canvas.height
+
+    ctx.clearRect(0, 0, w, h)
+
+    // Dark grid
+    ctx.strokeStyle = '#181824'
+    ctx.lineWidth = 1
+    for (let x = 40; x < w; x += 60) {
+      ctx.beginPath()
+      ctx.moveTo(x, 15)
+      ctx.lineTo(x, h - 25)
+      ctx.stroke()
+    }
+    for (let y = 20; y < h - 25; y += 40) {
+      ctx.beginPath()
+      ctx.moveTo(40, y)
+      ctx.lineTo(w - 15, y)
+      ctx.stroke()
+    }
+
+    // Axes
+    ctx.strokeStyle = '#353548'
+    ctx.beginPath()
+    ctx.moveTo(40, 15)
+    ctx.lineTo(40, h - 25)
+    ctx.lineTo(w - 15, h - 25)
+    ctx.stroke()
+
+    // Y Axis labels (dB)
+    ctx.fillStyle = '#6e6e84'
+    ctx.font = '9px monospace'
+    ctx.textAlign = 'right'
+    ctx.fillText('0 dB', 36, 35)
+    ctx.fillText('-15 dB', 36, 85)
+    ctx.fillText('-30 dB', 36, 135)
+    ctx.fillText('-50 dB', 36, 185)
+
+    // X Axis labels (km)
+    ctx.textAlign = 'center'
+    const maxKm = Math.max(10, otdrDist)
+    for (let km = 0; km <= maxKm; km += Math.ceil(maxKm / 5)) {
+      const x = 40 + (km / maxKm) * (w - 60)
+      ctx.fillText(`${km}k`, x, h - 10)
+    }
+
+    // OTDR Waveform Line
+    const attenRate = otdrWavelength === '1550' ? 0.22 : 0.35 // dB/km
+    const effectiveCutKm = otdrSimulateBreak ? Math.min(otdrBreakDist, maxKm) : maxKm
+
+    const getX = (km) => 40 + (km / maxKm) * (w - 60)
+    const getY = (db) => 35 + (Math.min(55, Math.max(-10, db)) / 55) * (h - 65)
+
+    ctx.strokeStyle = '#d4ff3f'
+    ctx.lineWidth = 2
+    ctx.shadowColor = '#d4ff3f'
+    ctx.shadowBlur = 8
+    ctx.beginPath()
+
+    // 1. Initial Dead Zone Launch Spike (Fresnel)
+    ctx.moveTo(getX(0), getY(-12))
+    ctx.lineTo(getX(0.1), getY(4))
+    ctx.lineTo(getX(0.4), getY(0))
+
+    // 2. Rayleigh Backscatter Slope
+    let currentLoss = 0
+    let stepKm = 0.2
+
+    for (let km = 0.4; km <= effectiveCutKm; km += stepKm) {
+      currentLoss = km * attenRate
+      // Add splice step drops every 6 km
+      const splicesBefore = Math.floor(km / 6)
+      const totalDb = currentLoss + (splicesBefore * 0.12)
+      ctx.lineTo(getX(km), getY(totalDb))
+    }
+
+    // 3. End Event / Cut Event
+    if (otdrSimulateBreak) {
+      // Reflective Fresnel Spike at Cut
+      const cutX = getX(effectiveCutKm)
+      const baseLoss = (effectiveCutKm * attenRate) + (Math.floor(effectiveCutKm / 6) * 0.12)
+      ctx.lineTo(cutX, getY(baseLoss - 16)) // Large upward reflection peak!
+      ctx.lineTo(cutX + 3, getY(52)) // Drops straight to noise floor!
+
+      // Noise floor after break
+      for (let km = effectiveCutKm + 0.5; km <= maxKm; km += 1.5) {
+        const noise = 51 + (Math.sin(km * 12) * 1.5)
+        ctx.lineTo(getX(km), getY(noise))
+      }
+    } else {
+      // Clean fiber end reflection
+      const endX = getX(maxKm)
+      const baseLoss = (maxKm * attenRate) + (Math.floor(maxKm / 6) * 0.12)
+      ctx.lineTo(endX, getY(baseLoss - 14))
+      ctx.lineTo(endX + 2, getY(52))
+    }
+
+    ctx.stroke()
+    ctx.shadowBlur = 0
+
+    // Red Fault Marker if break is simulated
+    if (otdrSimulateBreak) {
+      const cutX = getX(effectiveCutKm)
+      ctx.strokeStyle = '#f43f5e'
+      ctx.setLineDash([4, 4])
+      ctx.beginPath()
+      ctx.moveTo(cutX, 15)
+      ctx.lineTo(cutX, h - 25)
+      ctx.stroke()
+      ctx.setLineDash([])
+
+      // Marker Badge
+      ctx.fillStyle = '#f43f5e'
+      ctx.fillRect(cutX - 35, 18, 70, 16)
+      ctx.fillStyle = '#ffffff'
+      ctx.font = 'bold 9px monospace'
+      ctx.textAlign = 'center'
+      ctx.fillText(`${effectiveCutKm.toFixed(2)} KM`, cutX, 30)
+    }
+  }, [activeTab, otdrDist, otdrWavelength, otdrSimulateBreak, otdrBreakDist])
+
   return (
     <section id="tools" className="space-y-8 scroll-mt-24">
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
@@ -832,7 +965,7 @@ export default function NetworkToolbox({ isStandalone = false, onBack, initialTa
               {isStandalone ? "CARRIER LABS // DEDICATED SUITE" : "Utility Suite // 06"}
             </span>
             <span className="px-2 py-0.5 rounded bg-[#13131c] text-[#a0a0b2] text-[10px] mono border border-[#252536]">
-              9 ENGINES ONLINE · 100% PRIVATE
+              10 ENGINES ONLINE · 100% PRIVATE
             </span>
           </div>
           <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-white mt-1">
@@ -897,6 +1030,18 @@ export default function NetworkToolbox({ isStandalone = false, onBack, initialTa
           >
             <Layers className="w-3.5 h-3.5" />
             <span>Fiber dBm</span>
+          </button>
+
+          <button
+            onClick={() => handleTabSwitch('otdr')}
+            className={`px-3 py-1.5 rounded text-xs mono uppercase transition-all flex items-center gap-1.5 whitespace-nowrap ${
+              activeTab === 'otdr' 
+                ? 'bg-[#d4ff3f] text-[#08080a] font-bold shadow-[0_0_12px_rgba(212,255,63,0.3)]' 
+                : 'text-[#888898] hover:text-white'
+            }`}
+          >
+            <Radio className="w-3.5 h-3.5" />
+            <span>OTDR Trace</span>
           </button>
 
           <button
@@ -2076,6 +2221,156 @@ export default function NetworkToolbox({ isStandalone = false, onBack, initialTa
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* FEATURE 10: INTERACTIVE OPTICAL TIME-DOMAIN REFLECTOMETER (OTDR) SIMULATOR */}
+      {activeTab === 'otdr' && (
+        <div className="p-6 md:p-8 rounded-xl bg-[#0c0c12] border border-[#20202c] space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <span className="p-2.5 rounded bg-[#d4ff3f]/10 text-[#d4ff3f] border border-[#d4ff3f]/20">
+                <Radio className="w-5 h-5" />
+              </span>
+              <div>
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  <span>Carrier Optical OTDR Trace Simulator</span>
+                  <span className="text-[10px] mono px-2 py-0.5 rounded bg-[#d4ff3f]/15 text-[#d4ff3f] border border-[#d4ff3f]/30 font-semibold">
+                    RAYLEIGH & FRESNEL
+                  </span>
+                </h3>
+                <p className="text-xs text-[#8f8f9e] mono">
+                  Simulates Rayleigh backscattering slope, fusion splice attenuation (0.12 dB), and reflective cut boundaries.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 text-xs mono">
+              <span className="text-[#8e8ea0]">Wavelength:</span>
+              <button
+                type="button"
+                onClick={() => setOtdrWavelength('1310')}
+                className={`px-2.5 py-1 rounded text-xs mono transition-all ${
+                  otdrWavelength === '1310'
+                    ? 'bg-[#d4ff3f] text-[#08080a] font-bold shadow-[0_0_10px_rgba(212,255,63,0.3)]'
+                    : 'bg-[#14141e] text-[#a0a0b2] border border-[#262638] hover:text-white'
+                }`}
+              >
+                1310 nm (0.35 dB/km)
+              </button>
+              <button
+                type="button"
+                onClick={() => setOtdrWavelength('1550')}
+                className={`px-2.5 py-1 rounded text-xs mono transition-all ${
+                  otdrWavelength === '1550'
+                    ? 'bg-[#d4ff3f] text-[#08080a] font-bold shadow-[0_0_10px_rgba(212,255,63,0.3)]'
+                    : 'bg-[#14141e] text-[#a0a0b2] border border-[#262638] hover:text-white'
+                }`}
+              >
+                1550 nm (0.22 dB/km)
+              </button>
+            </div>
+          </div>
+
+          {/* Interactive Controls Bar */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-lg bg-[#0e0e14] border border-[#1b1b26]">
+            <div>
+              <div className="flex items-center justify-between text-xs mono mb-1.5">
+                <span className="text-[#888898]">Total Span Distance</span>
+                <span className="text-white font-bold">{otdrDist} KM</span>
+              </div>
+              <input
+                type="range"
+                min="10"
+                max="80"
+                step="5"
+                value={otdrDist}
+                onChange={(e) => setOtdrDist(Number(e.target.value))}
+                className="w-full accent-[#d4ff3f] bg-[#1a1a26] h-1.5 rounded cursor-pointer"
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between text-xs mono mb-1.5">
+                <span className="text-[#888898]">Fiber Cut / Fault Injector</span>
+                <button
+                  type="button"
+                  onClick={() => setOtdrSimulateBreak(!otdrSimulateBreak)}
+                  className={`text-[10px] px-2 py-0.5 rounded font-bold mono uppercase transition-all ${
+                    otdrSimulateBreak
+                      ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                      : 'bg-[#181824] text-[#8e8ea0] border border-[#2a2a3c]'
+                  }`}
+                >
+                  {otdrSimulateBreak ? 'FAULT INJECTED' : 'HEALTHY SPAN'}
+                </button>
+              </div>
+              <input
+                type="range"
+                min="1"
+                max={otdrDist}
+                step="0.5"
+                disabled={!otdrSimulateBreak}
+                value={otdrBreakDist}
+                onChange={(e) => setOtdrBreakDist(Number(e.target.value))}
+                className={`w-full h-1.5 rounded cursor-pointer ${
+                  otdrSimulateBreak ? 'accent-rose-500 bg-[#281820]' : 'accent-slate-600 bg-[#161620] opacity-40'
+                }`}
+              />
+            </div>
+
+            <div className="flex flex-col justify-center">
+              <div className="text-[10px] mono uppercase text-[#737385]">Diagnostic Status</div>
+              <div className="flex items-center gap-2 mt-1">
+                <span className={`w-2.5 h-2.5 rounded-full ${otdrSimulateBreak ? 'bg-rose-500 animate-pulse' : 'bg-[#d4ff3f]'}`}></span>
+                <span className={`text-xs mono font-bold ${otdrSimulateBreak ? 'text-rose-400' : 'text-[#d4ff3f]'}`}>
+                  {otdrSimulateBreak ? `BREAK LOCATED AT ${otdrBreakDist.toFixed(1)} KM` : `END OF FIBER REACHED (${otdrDist} KM)`}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Canvas Waveform Display */}
+          <div className="relative rounded-lg bg-[#06060a] border border-[#1a1a24] p-2 overflow-hidden shadow-inner">
+            <div className="absolute top-3 left-4 flex items-center gap-2 text-[10px] mono text-[#6e6e84] select-none">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#d4ff3f]"></span>
+              <span>OTDR TRACE LOG // PULSE: 100ns · REFRACTION INDEX: 1.4682</span>
+            </div>
+            <canvas
+              ref={otdrCanvasRef}
+              width={760}
+              height={220}
+              className="w-full h-[220px] block"
+            />
+          </div>
+
+          {/* Fault & Telemetry Metrics */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+            <div className="p-3 rounded bg-[#0e0e14] border border-[#1b1b26]">
+              <div className="text-[10px] mono uppercase text-[#707082]">Fiber Loss Coeff</div>
+              <div className="text-sm font-bold mono text-white mt-1">
+                {otdrWavelength === '1550' ? '0.22 dB/km' : '0.35 dB/km'}
+              </div>
+            </div>
+            <div className="p-3 rounded bg-[#0e0e14] border border-[#1b1b26]">
+              <div className="text-[10px] mono uppercase text-[#707082]">Splices in Route</div>
+              <div className="text-sm font-bold mono text-[#00f0ff] mt-1">
+                {Math.floor((otdrSimulateBreak ? Math.min(otdrBreakDist, otdrDist) : otdrDist) / 6)} Splice Events
+              </div>
+            </div>
+            <div className="p-3 rounded bg-[#0e0e14] border border-[#1b1b26]">
+              <div className="text-[10px] mono uppercase text-[#707082]">Calculated Loss</div>
+              <div className="text-sm font-bold mono text-[#d4ff3f] mt-1">
+                {((otdrSimulateBreak ? Math.min(otdrBreakDist, otdrDist) : otdrDist) * (otdrWavelength === '1550' ? 0.22 : 0.35) + Math.floor((otdrSimulateBreak ? Math.min(otdrBreakDist, otdrDist) : otdrDist) / 6) * 0.12).toFixed(2)} dB
+              </div>
+            </div>
+            <div className="p-3 rounded bg-[#0e0e14] border border-[#1b1b26]">
+              <div className="text-[10px] mono uppercase text-[#707082]">Optical Condition</div>
+              <div className={`text-sm font-bold mono mt-1 ${otdrSimulateBreak ? 'text-rose-400' : 'text-[#d4ff3f]'}`}>
+                {otdrSimulateBreak ? 'FIBER CUT (CRITICAL)' : 'HEALTHY SPAN'}
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </section>

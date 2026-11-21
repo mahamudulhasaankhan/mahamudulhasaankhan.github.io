@@ -26,11 +26,18 @@ import {
   Power,
   Calculator,
   Lock,
-  Zap
+  Zap,
+  Volume2,
+  VolumeX,
+  FileText
 } from 'lucide-react'
 import NetworkCanvas from './components/NetworkCanvas'
 import NetworkToolbox from './components/NetworkToolbox'
+import VisitorTelemetry from './components/VisitorTelemetry'
+import NocWarRoom from './components/NocWarRoom'
 import ToolsPage from './pages/ToolsPage'
+import { playKeyClick, playLaserPulse, playTelemetryBeep } from './utils/audio'
+import { downloadJunosConfig, JUNOS_CONFIG_CONTENT } from './utils/junosConfig'
 
 // Cyberpunk Matrix Digital Rain Canvas for Terminal Easter Egg
 function MatrixRain() {
@@ -94,7 +101,7 @@ function MatrixRain() {
 }
 
 // Interactive Cyber Hologram Heading with Zero-Layout-Shift Glitch, Hover Decode Wave & Click Shockwave
-function GlitchHeading() {
+function GlitchHeading({ onShockwave }) {
   const line1 = "The strongest"
   const line2Prefix = "networks are "
   const line2Highlight = "invisible."
@@ -164,6 +171,7 @@ function GlitchHeading() {
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('network-burst'))
     }
+    onShockwave?.()
 
     // 2. Ripple coordinates relative to container
     const rect = e.currentTarget.getBoundingClientRect()
@@ -395,6 +403,16 @@ export default function App() {
   const terminalEndRef = useRef(null)
   const terminalInputRef = useRef(null)
 
+  // Web Audio Haptic Feedback State
+  const [soundEnabled, setSoundEnabled] = useState(false)
+  const toggleSound = () => {
+    setSoundEnabled(prev => {
+      const next = !prev
+      if (next) playTelemetryBeep()
+      return next
+    })
+  }
+
   // Auto-scroll terminal so new prompt stays in front and old commands scroll up
   useEffect(() => {
     terminalEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -457,6 +475,10 @@ export default function App() {
     const cmd = cmdRaw.trim()
     if (!cmd) return
 
+    if (soundEnabled) {
+      playTelemetryBeep()
+    }
+
     setPastCommands(prev => [...prev, cmd])
     setHistoryIndex(-1)
 
@@ -476,9 +498,11 @@ export default function App() {
   show bgp summary        - Inspect BGP peers, ASNs, received prefix counts
   show interfaces terse   - View 10G/100G fiber interfaces & transit statuses
   show route              - Display inet.0 active routing table entries
+  show config             - Display carrier Junos candidate configuration
   show chassis hardware   - Display MX960 modular chassis, RE, and MPC cards
   show system uptime      - Display routing engine uptime and load averages
   show version            - Display Junos software release & kernel info
+  download config         - Download mahamudul.conf to your workstation
   ping <host>             - Send ICMP echo requests (e.g. ping 8.8.8.8)
   traceroute <host>       - Trace packet hops to target IP
   whoami                  - Display engineer credentials and NOC access tier
@@ -486,6 +510,11 @@ export default function App() {
   laser                   - [EASTER EGG] Fire 100G optical packet burst
   dhaka                   - Inspect Dhaka BDIX & Amber IT transit interconnect
   clear                   - Clear screen buffer`
+    } else if (lower === 'show config' || lower === 'show configuration') {
+      response = JUNOS_CONFIG_CONTENT
+    } else if (lower === 'download config' || lower === 'export config') {
+      downloadJunosConfig()
+      response = `[✓] Generating and downloading mahamudul.conf (Junos OS 22.4R2 syntax)... Done.`
     } else if (lower === 'matrix' || lower === 'matrix on' || lower === 'cyber') {
       setMatrixMode(true)
       response = `[+] INITIALIZING CYBERPUNK MATRIX DIGITAL RAIN STREAM...
@@ -612,6 +641,9 @@ round-trip min/avg/max/stddev = 0.584/0.603/0.628/0.017 ms`
   }
 
   const handleTerminalKeyDown = (e) => {
+    if (soundEnabled && e.key && e.key.length === 1) {
+      playKeyClick()
+    }
     if (e.key === 'ArrowUp') {
       e.preventDefault()
       if (pastCommands.length === 0) return
@@ -792,6 +824,20 @@ round-trip min/avg/max/stddev = 0.584/0.603/0.628/0.017 ms`
           </nav>
 
           <div className="hidden md:flex items-center gap-3">
+            <button
+              type="button"
+              onClick={toggleSound}
+              className={`px-2.5 py-1.5 text-xs font-mono rounded border transition-all flex items-center gap-1.5 ${
+                soundEnabled
+                  ? 'bg-[#d4ff3f]/15 text-[#d4ff3f] border-[#d4ff3f]/50 shadow-[0_0_12px_rgba(212,255,63,0.3)]'
+                  : 'bg-[#111118] text-[#8e8e99] border-[#22222e] hover:text-white'
+              }`}
+              title={soundEnabled ? "Mute audio feedback" : "Enable Web Audio haptic feedback (typing clicks, laser chirps)"}
+            >
+              {soundEnabled ? <Volume2 className="w-3.5 h-3.5 text-[#d4ff3f]" /> : <VolumeX className="w-3.5 h-3.5" />}
+              <span>{soundEnabled ? 'SOUND: ON' : 'SOUND: OFF'}</span>
+            </button>
+
             <a 
               href="https://www.linkedin.com/in/md-mahamudul-hassan-khan/" 
               target="_blank" 
@@ -803,12 +849,26 @@ round-trip min/avg/max/stddev = 0.584/0.603/0.628/0.017 ms`
             </a>
           </div>
 
-          <button 
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 text-slate-300 hover:text-white"
-          >
-            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
+          <div className="md:hidden flex items-center gap-2">
+            <button
+              type="button"
+              onClick={toggleSound}
+              className={`p-2 rounded text-xs border ${
+                soundEnabled
+                  ? 'text-[#d4ff3f] border-[#d4ff3f]/50 bg-[#d4ff3f]/10'
+                  : 'text-slate-400 border-[#22222e] bg-[#111118]'
+              }`}
+              title={soundEnabled ? "Mute audio" : "Enable audio"}
+            >
+              {soundEnabled ? <Volume2 className="w-4 h-4 text-[#d4ff3f]" /> : <VolumeX className="w-4 h-4" />}
+            </button>
+            <button 
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="p-2 text-slate-300 hover:text-white"
+            >
+              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+          </div>
         </div>
 
         {mobileMenuOpen && (
@@ -861,7 +921,7 @@ round-trip min/avg/max/stddev = 0.584/0.603/0.628/0.017 ms`
               </div>
 
               <div className="space-y-4">
-                <GlitchHeading />
+                <GlitchHeading onShockwave={() => { if (soundEnabled) playLaserPulse() }} />
                 <p className="text-lg md:text-2xl text-[#9b9ba4] max-w-2xl leading-relaxed font-light">
                   Engineering carrier-grade routing, core-access resilience, and automated logging for mission-critical enterprise environments.
                 </p>
@@ -882,9 +942,21 @@ round-trip min/avg/max/stddev = 0.584/0.603/0.628/0.017 ms`
                   <TerminalIcon className="w-4 h-4 text-[#d4ff3f]" />
                   <span>LAUNCH DIAGNOSTIC CLI</span>
                 </a>
+                <button
+                  type="button"
+                  onClick={downloadJunosConfig}
+                  className="px-6 py-3.5 border border-[#2e2e38] bg-[#101017]/90 backdrop-blur-md text-[#f4f4f2] rounded hover:border-[#d4ff3f] hover:text-[#d4ff3f] transition-all flex items-center gap-2"
+                  title="Export resume as a Junos OS 22.4R2 hierarchical configuration file"
+                >
+                  <FileText className="w-4 h-4 text-[#d4ff3f]" />
+                  <span>EXPORT JUNOS RESUME (.CONF)</span>
+                </button>
               </div>
             </div>
           </section>
+
+          {/* VISITOR REAL-TIME EDGE TELEMETRY HUD */}
+          <VisitorTelemetry />
 
           {/* MARQUEE PROTOCOL TICKER */}
           <section className="relative overflow-hidden py-4 border-y border-[#1c1c24] bg-[#0c0c10]">
@@ -1077,6 +1149,9 @@ round-trip min/avg/max/stddev = 0.584/0.603/0.628/0.017 ms`
                 </div>
               ))}
             </div>
+
+            {/* NOC WAR ROOM PRODUCTION INCIDENT LOGS & ARCHIVE */}
+            <NocWarRoom />
           </section>
 
           {/* 05 / JUNIPER JUNOS OS INTERACTIVE DIAGNOSTIC TERMINAL */}
@@ -1099,6 +1174,7 @@ round-trip min/avg/max/stddev = 0.584/0.603/0.628/0.017 ms`
                 'show bgp summary',
                 'show interfaces terse',
                 'show route',
+                'show config',
                 'show chassis hardware',
                 'show system uptime',
                 'show version',
@@ -1235,14 +1311,14 @@ round-trip min/avg/max/stddev = 0.584/0.603/0.628/0.017 ms`
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-xs mono tracking-widest uppercase text-[#d4ff3f]">Utility Suite // 06</span>
                   <span className="px-2 py-0.5 rounded bg-[#13131c] text-[#a0a0b2] text-[10px] mono border border-[#252536]">
-                    9 ENGINES ONLINE · 100% PRIVATE
+                    10 ENGINES ONLINE · 100% PRIVATE
                   </span>
                 </div>
                 <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight text-white mt-1">
                   Carrier-Grade Network Toolbox.
                 </h2>
                 <p className="text-sm md:text-base text-[#9b9ba4] mt-2 max-w-2xl font-light">
-                  A dedicated high-performance engineering suite with 9 offline and live engines for DoH DNS, global Anycast latency, BGP looking glass, optical link budgeting, MAC OUI analysis, and zero-leak privacy auditing.
+                  A dedicated high-performance engineering suite with 10 offline and live engines for DoH DNS, global Anycast latency, BGP looking glass, optical link budgeting, MAC OUI analysis, optical OTDR fault tracing, and zero-leak privacy auditing.
                 </p>
               </div>
 
@@ -1321,6 +1397,13 @@ round-trip min/avg/max/stddev = 0.584/0.603/0.628/0.017 ms`
                   title: 'Wire Transfer & Link Saturation Calc',
                   desc: 'L2 Ethernet framing overhead, MTU sizing, and file transfer duration modeling for 1G, 10G, 40G, and 100G optical links.',
                   tag: 'L2/L3 Wire Overhead'
+                },
+                {
+                  id: 'otdr',
+                  num: '10',
+                  title: 'Optical OTDR Trace & Fault Locator',
+                  desc: 'Interactive Rayleigh backscattering trace simulator and Fresnel reflection spikes detecting optical fiber cuts and splice drops at exact kilometer offsets.',
+                  tag: 'OTDR / Rayleigh'
                 }
               ].map(t => (
                 <div 
