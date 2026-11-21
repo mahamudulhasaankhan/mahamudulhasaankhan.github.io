@@ -93,48 +93,83 @@ function MatrixRain() {
   )
 }
 
-// Binary Character Scramble / Hacker Glitch Heading (Inspired by raifkaya.nl)
+// Zero-Layout-Shift Binary Character Glitch Heading (Inspired by raifkaya.nl)
 function GlitchHeading() {
-  const [prefix, setPrefix] = useState("The strongest networks are ")
-  const [highlight, setHighlight] = useState("invisible.")
+  const line1 = "The strongest networks"
+  const line2Prefix = "are "
+  const line2Highlight = "invisible."
+
+  const [glitchState, setGlitchState] = useState({ index: -1, char: '0' })
 
   useEffect(() => {
-    const fullText = "The strongest networks are invisible."
-    const prefixLen = "The strongest networks are ".length
     let isGlitched = false
+    const fullText = "The strongest networks are invisible."
+    const validIndices = []
+    for (let i = 0; i < fullText.length; i++) {
+      if (fullText[i] !== ' ' && fullText[i] !== '.') {
+        validIndices.push(i)
+      }
+    }
 
     const interval = setInterval(() => {
       if (isGlitched) {
-        setPrefix("The strongest networks are ")
-        setHighlight("invisible.")
+        setGlitchState({ index: -1, char: '0' })
         isGlitched = false
       } else {
-        const chars = [...fullText]
-        const validIndices = []
-        for (let i = 0; i < chars.length; i++) {
-          if (chars[i] !== ' ' && chars[i] !== '.') {
-            validIndices.push(i)
-          }
-        }
-        if (validIndices.length > 0) {
-          const randIndex = validIndices[Math.floor(Math.random() * validIndices.length)]
-          chars[randIndex] = Math.random() < 0.5 ? '0' : '1'
-          const newFull = chars.join('')
-          setPrefix(newFull.slice(0, prefixLen))
-          setHighlight(newFull.slice(prefixLen))
-          isGlitched = true
-        }
+        const randIndex = validIndices[Math.floor(Math.random() * validIndices.length)]
+        const randChar = Math.random() < 0.5 ? '0' : '1'
+        setGlitchState({ index: randIndex, char: randChar })
+        isGlitched = true
       }
     }, 280)
 
     return () => clearInterval(interval)
   }, [])
 
+  // Helper to render characters with 100% zero layout shift
+  const renderChars = (str, offset, isHighlight = false) => {
+    return str.split('').map((c, i) => {
+      const globalIdx = offset + i
+      const isCharGlitched = glitchState.index === globalIdx
+
+      if (c === ' ') {
+        return <span key={i}> </span>
+      }
+
+      return (
+        <span key={i} className="inline-block relative">
+          {/* Base character preserves EXACT physical width */}
+          <span className={isCharGlitched ? "opacity-0" : ""}>{c}</span>
+          
+          {/* Glitched replacement overlays in the exact same box with zero layout shift */}
+          {isCharGlitched && (
+            <span 
+              className={`absolute inset-0 flex items-center justify-center font-mono select-none ${
+                isHighlight ? 'text-[#00f0ff]' : 'text-[#d4ff3f]'
+              }`}
+            >
+              {glitchState.char}
+            </span>
+          )}
+        </span>
+      )
+    })
+  }
+
+  const line1Len = line1.length // 22
+  const line2PrefixLen = line2Prefix.length // 4 (offset: 23)
+  const line2HighlightOffset = line1Len + 1 + line2PrefixLen // 27
+
   return (
-    <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight uppercase leading-[1.05]">
-      {prefix}
-      <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#d4ff3f] via-[#00f0ff] to-white">
-        {highlight}
+    <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight uppercase leading-[1.08]">
+      <span className="block">
+        {renderChars(line1, 0, false)}
+      </span>
+      <span className="block mt-1 sm:mt-2">
+        {renderChars(line2Prefix, line1Len + 1, false)}
+        <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#d4ff3f] via-[#00f0ff] to-white">
+          {renderChars(line2Highlight, line2HighlightOffset, true)}
+        </span>
       </span>
     </h1>
   )
