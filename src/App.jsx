@@ -35,6 +35,7 @@ import NetworkCanvas from './components/NetworkCanvas'
 import NetworkToolbox from './components/NetworkToolbox'
 import VisitorTelemetry from './components/VisitorTelemetry'
 import NocWarRoom from './components/NocWarRoom'
+import CyberIntroLoader from './components/CyberIntroLoader'
 import ToolsPage from './pages/ToolsPage'
 import { playKeyClick, playLaserPulse, playTelemetryBeep } from './utils/audio'
 import { downloadJunosConfig, JUNOS_CONFIG_CONTENT } from './utils/junosConfig'
@@ -413,6 +414,23 @@ export default function App() {
     })
   }
 
+  // Cyber Matrix Intro Loader State
+  const [showIntro, setShowIntro] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      if (params.get('intro') === '1') return true
+      return !sessionStorage.getItem('mahamudul_intro_seen')
+    }
+    return false
+  })
+
+  const handleIntroComplete = () => {
+    setShowIntro(false)
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('mahamudul_intro_seen', 'true')
+    }
+  }
+
   // Auto-scroll terminal so new prompt stays in front and old commands scroll up
   useEffect(() => {
     terminalEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -506,10 +524,14 @@ export default function App() {
   ping <host>             - Send ICMP echo requests (e.g. ping 8.8.8.8)
   traceroute <host>       - Trace packet hops to target IP
   whoami                  - Display engineer credentials and NOC access tier
+  intro                   - [REPLAY] Trigger Cyber Matrix Identity Decrypt intro
   matrix                  - [EASTER EGG] Trigger Cyberpunk Matrix Digital Rain
   laser                   - [EASTER EGG] Fire 100G optical packet burst
   dhaka                   - Inspect Dhaka BDIX & Amber IT transit interconnect
   clear                   - Clear screen buffer`
+    } else if (lower === 'intro' || lower === 'replay' || lower === 'boot') {
+      setShowIntro(true)
+      response = `[+] Triggering Cyber Matrix Identity Decrypt sequence...`
     } else if (lower === 'show config' || lower === 'show configuration') {
       response = JUNOS_CONFIG_CONTENT
     } else if (lower === 'download config' || lower === 'export config') {
@@ -750,6 +772,9 @@ round-trip min/avg/max/stddev = 0.584/0.603/0.628/0.017 ms`
 
   return (
     <div className="relative min-h-screen bg-[#08080a] text-[#f4f4f2] selection:bg-[#d4ff3f] selection:text-[#08080a]">
+      {/* CYBER MATRIX IDENTITY DECRYPT INTRO LOADER */}
+      {showIntro && <CyberIntroLoader onComplete={handleIntroComplete} />}
+
       {/* PACKET TRANSMISSION SPINE (Anchored cleanly to viewport edge) */}
       <div className="fixed left-0 top-0 bottom-0 w-[2px] bg-[#1a1a20] z-40 pointer-events-none">
         <div 
@@ -1180,6 +1205,7 @@ round-trip min/avg/max/stddev = 0.584/0.603/0.628/0.017 ms`
                 'show version',
                 'ping 8.8.8.8',
                 'whoami',
+                'intro',
                 'clear'
               ].map((cmd) => (
                 <button
