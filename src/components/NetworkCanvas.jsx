@@ -289,6 +289,17 @@ export default function NetworkCanvas() {
     resize()
     window.addEventListener('resize', resize, { passive: true })
 
+    // Interactive Packet Burst reaction from Heading Clicks
+    let burstActive = 0
+    const handleNetworkBurst = () => {
+      burstActive = 1.0
+      for (let i = 0; i < packets.length; i++) {
+        packets[i].s = 3.6
+        packets[i].t = 0
+      }
+    }
+    window.addEventListener('network-burst', handleNetworkBurst)
+
     const clock = new THREE.Clock()
     let reqId
 
@@ -307,6 +318,17 @@ export default function NetworkCanvas() {
 
       rig.rotation.y = mx * 0.35
       rig.rotation.x = -my * 0.25
+
+      // React to network burst shockwave
+      if (burstActive > 0) {
+        burstActive = Math.max(0, burstActive - dt * 0.75)
+        for (let i = 0; i < packets.length; i++) {
+          packets[i].s += (0.95 - packets[i].s) * dt * 2.5
+        }
+        currentNetworkGroup.scale.setScalar(1 + Math.sin(burstActive * Math.PI) * 0.04)
+      } else {
+        currentNetworkGroup.scale.set(1, 1, 1)
+      }
 
       // Slight auto spin for ring / mesh
       if (activeType === 'ring' || activeType === 'mesh') {
@@ -341,6 +363,7 @@ export default function NetworkCanvas() {
       cancelAnimationFrame(reqId)
       window.removeEventListener('pointermove', handlePointerMove)
       window.removeEventListener('resize', resize)
+      window.removeEventListener('network-burst', handleNetworkBurst)
       renderer.dispose()
     }
   }, [])

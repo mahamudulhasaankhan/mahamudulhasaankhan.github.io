@@ -93,14 +93,19 @@ function MatrixRain() {
   )
 }
 
-// Zero-Layout-Shift Random Single-Character Binary Glitch (Entire line random 0/1)
+// Interactive Cyber Hologram Heading with Zero-Layout-Shift Glitch, Hover Decode Wave & Click Shockwave
 function GlitchHeading() {
   const line1 = "The strongest"
   const line2Prefix = "networks are "
   const line2Highlight = "invisible."
 
-  // Exactly 1 character anywhere in the entire line glitched at a time
+  // Ambient 1-character 0/1 glitch across entire line
   const [glitchState, setGlitchState] = useState({ index: -1, char: '0' })
+  // Hover decode wave map: { [globalIdx]: char }
+  const [hoverMap, setHoverMap] = useState({})
+  // Burst alert status & shockwave ripples
+  const [burstAlert, setBurstAlert] = useState(false)
+  const [ripples, setRipples] = useState([])
 
   useEffect(() => {
     const fullText = "The strongest networks are invisible."
@@ -136,18 +141,65 @@ function GlitchHeading() {
     return () => clearInterval(interval)
   }, [])
 
+  // Interactive Hover Scramble Wave
+  const triggerHoverDecode = (idx) => {
+    if (hoverMap[idx]) return
+    const cyberChars = ['0', '1', 'X', '#', '!', '7', 'Ø']
+    const randChar = cyberChars[Math.floor(Math.random() * cyberChars.length)]
+
+    setHoverMap(prev => ({ ...prev, [idx]: randChar }))
+
+    setTimeout(() => {
+      setHoverMap(prev => {
+        const next = { ...prev }
+        delete next[idx]
+        return next
+      })
+    }, 180)
+  }
+
+  // Click Shockwave Burst
+  const handleClickHeading = (e) => {
+    // 1. Dispatch event to 3D Canvas
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('network-burst'))
+    }
+
+    // 2. Ripple coordinates relative to container
+    const rect = e.currentTarget.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
+    const newRipple = { id: Date.now(), x, y }
+    setRipples(prev => [...prev, newRipple])
+    setTimeout(() => {
+      setRipples(prev => prev.filter(r => r.id !== newRipple.id))
+    }, 800)
+
+    // 3. Show live packet burst HUD badge
+    setBurstAlert(true)
+    setTimeout(() => setBurstAlert(false), 2400)
+  }
+
   // Helper to render characters with 100% zero layout shift
   const renderChars = (str, offset, isHighlight = false) => {
     return str.split('').map((c, i) => {
       const globalIdx = offset + i
-      const isCharGlitched = glitchState.index === globalIdx
+      const isAmbientGlitched = glitchState.index === globalIdx
+      const hoverChar = hoverMap[globalIdx]
+      const isCharGlitched = isAmbientGlitched || hoverChar !== undefined
+      const activeChar = hoverChar || glitchState.char
 
       if (c === ' ') {
         return <span key={i}> </span>
       }
 
       return (
-        <span key={i} className="inline-block relative">
+        <span 
+          key={i} 
+          onMouseEnter={() => triggerHoverDecode(globalIdx)}
+          onTouchMove={() => triggerHoverDecode(globalIdx)}
+          className="inline-block relative cursor-pointer"
+        >
           {/* Base character preserves EXACT physical width */}
           <span className={isCharGlitched ? "opacity-0" : ""}>{c}</span>
           
@@ -155,10 +207,10 @@ function GlitchHeading() {
           {isCharGlitched && (
             <span 
               className={`absolute inset-0 flex items-center justify-center font-mono select-none ${
-                isHighlight ? 'text-[#00f0ff]' : 'text-[#d4ff3f]'
+                hoverChar ? 'text-white drop-shadow-[0_0_8px_#d4ff3f]' : (isHighlight ? 'text-[#00f0ff]' : 'text-[#d4ff3f]')
               }`}
             >
-              {glitchState.char}
+              {activeChar}
             </span>
           )}
         </span>
@@ -171,17 +223,58 @@ function GlitchHeading() {
   const line2HighlightOffset = line1Len + 1 + line2PrefixLen // 13 + 1 + 13 = 27
 
   return (
-    <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight uppercase leading-[1.08]">
-      <span className="block">
-        {renderChars(line1, 0, false)}
-      </span>
-      <span className="block mt-1 sm:mt-2">
-        {renderChars(line2Prefix, line1Len + 1, false)}
-        <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#d4ff3f] via-[#00f0ff] to-white">
-          {renderChars(line2Highlight, line2HighlightOffset, true)}
-        </span>
-      </span>
-    </h1>
+    <div className="space-y-2 select-none">
+      <div 
+        onClick={handleClickHeading}
+        className="relative cursor-pointer group p-1 -m-1 rounded-xl transition-all"
+        title="Click to inject 100G optical packet burst into 3D network!"
+      >
+        {/* Shockwave ripples on click */}
+        {ripples.map(r => (
+          <span
+            key={r.id}
+            className="absolute rounded-full border border-[#d4ff3f] pointer-events-none animate-ping"
+            style={{
+              left: r.x - 20,
+              top: r.y - 20,
+              width: 40,
+              height: 40,
+              boxShadow: '0 0 20px #d4ff3f'
+            }}
+          />
+        ))}
+
+        <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight uppercase leading-[1.08]">
+          <span className="block">
+            {renderChars(line1, 0, false)}
+          </span>
+          <span className="block mt-1 sm:mt-2">
+            {renderChars(line2Prefix, line1Len + 1, false)}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#d4ff3f] via-[#00f0ff] to-white">
+              {renderChars(line2Highlight, line2HighlightOffset, true)}
+            </span>
+          </span>
+        </h1>
+      </div>
+
+      {/* Live Carrier Telemetry Pulse / Click Indicator */}
+      <div className="flex items-center gap-3 pt-1">
+        {burstAlert ? (
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded bg-[#0d2215] border border-[#00ff66] text-xs mono text-[#00ff66] shadow-[0_0_15px_rgba(0,255,102,0.4)] animate-bounce">
+            <span className="w-2 h-2 rounded-full bg-[#00ff66] animate-ping"></span>
+            <span>⚡ 100G OPTICAL DWDM BURST INJECTED · 0.18ms RTT</span>
+          </div>
+        ) : (
+          <div 
+            onClick={handleClickHeading}
+            className="inline-flex items-center gap-2 text-[11px] mono text-[#7c7c8e] hover:text-[#d4ff3f] transition-colors cursor-pointer group"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-[#d4ff3f]/60 group-hover:bg-[#d4ff3f] animate-pulse"></span>
+            <span>Hover to decode wave · Click heading to pulse 3D network</span>
+          </div>
+        )}
+      </div>
+    </div>
   )
 }
 
