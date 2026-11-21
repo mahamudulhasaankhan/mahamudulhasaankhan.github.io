@@ -93,35 +93,56 @@ function MatrixRain() {
   )
 }
 
-// Zero-Layout-Shift Binary Character Glitch Heading (Inspired by raifkaya.nl)
+// Zero-Layout-Shift Multi-Word Binary Glitch Heading (Random distributed 0/1 across all words)
 function GlitchHeading() {
   const line1 = "The strongest"
   const line2Prefix = "networks are "
   const line2Highlight = "invisible."
 
-  const [glitchState, setGlitchState] = useState({ index: -1, char: '0' })
+  // Map of active glitched characters: { [globalIndex]: '0' | '1' }
+  const [glitchMap, setGlitchMap] = useState({})
 
   useEffect(() => {
-    let isGlitched = false
-    const fullText = "The strongest networks are invisible."
-    const validIndices = []
-    for (let i = 0; i < fullText.length; i++) {
-      if (fullText[i] !== ' ' && fullText[i] !== '.') {
-        validIndices.push(i)
-      }
-    }
+    // Exact character indices for every single word
+    // "The" -> 0..2
+    // "strongest" -> 4..12
+    // "networks" -> 14..21
+    // "are" -> 23..25
+    // "invisible" -> 27..35
+    const wordBuckets = [
+      [0, 1, 2],                          // "The"
+      [4, 5, 6, 7, 8, 9, 10, 11, 12],     // "strongest"
+      [14, 15, 16, 17, 18, 19, 20, 21],   // "networks"
+      [23, 24, 25],                       // "are"
+      [27, 28, 29, 30, 31, 32, 33, 34, 35]// "invisible"
+    ]
+
+    let tick = 0
 
     const interval = setInterval(() => {
-      if (isGlitched) {
-        setGlitchState({ index: -1, char: '0' })
-        isGlitched = false
-      } else {
-        const randIndex = validIndices[Math.floor(Math.random() * validIndices.length)]
-        const randChar = Math.random() < 0.5 ? '0' : '1'
-        setGlitchState({ index: randIndex, char: randChar })
-        isGlitched = true
+      tick++
+
+      // Every 3rd or 4th cycle, brief 140ms pause where all characters return to normal so it breathes
+      if (tick % 4 === 0 && Math.random() < 0.7) {
+        setGlitchMap({})
+        return
       }
-    }, 280)
+
+      // Randomly decide how many words to glitch simultaneously (1 to 3 words)
+      const count = Math.random() < 0.35 ? 1 : (Math.random() < 0.8 ? 2 : 3)
+      const nextMap = {}
+
+      // Shuffle word list so EVERY word gets an unpredictable chance
+      const shuffledBuckets = [...wordBuckets].sort(() => Math.random() - 0.5)
+
+      for (let i = 0; i < count; i++) {
+        const bucket = shuffledBuckets[i]
+        const randomCharIdx = bucket[Math.floor(Math.random() * bucket.length)]
+        nextMap[randomCharIdx] = Math.random() < 0.5 ? '0' : '1'
+      }
+
+      setGlitchMap(nextMap)
+    }, 150)
 
     return () => clearInterval(interval)
   }, [])
@@ -130,7 +151,8 @@ function GlitchHeading() {
   const renderChars = (str, offset, isHighlight = false) => {
     return str.split('').map((c, i) => {
       const globalIdx = offset + i
-      const isCharGlitched = glitchState.index === globalIdx
+      const glitchChar = glitchMap[globalIdx]
+      const isCharGlitched = glitchChar !== undefined
 
       if (c === ' ') {
         return <span key={i}> </span>
@@ -148,7 +170,7 @@ function GlitchHeading() {
                 isHighlight ? 'text-[#00f0ff]' : 'text-[#d4ff3f]'
               }`}
             >
-              {glitchState.char}
+              {glitchChar}
             </span>
           )}
         </span>
