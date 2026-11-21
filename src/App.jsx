@@ -93,51 +93,42 @@ function MatrixRain() {
   )
 }
 
-// Zero-Layout-Shift Single-Character Rotating Binary Glitch (Exactly 1 character of 1 word at a time)
+// Zero-Layout-Shift Random Single-Character Binary Glitch (Entire line random 0/1)
 function GlitchHeading() {
   const line1 = "The strongest"
   const line2Prefix = "networks are "
   const line2Highlight = "invisible."
 
-  // Exactly 1 character glitched at a time
+  // Exactly 1 character anywhere in the entire line glitched at a time
   const [glitchState, setGlitchState] = useState({ index: -1, char: '0' })
 
   useEffect(() => {
-    // Character indices for each of the 5 distinct words:
-    // "The" -> 0..2
-    // "strongest" -> 4..12
-    // "networks" -> 14..21
-    // "are" -> 23..25
-    // "invisible" -> 27..35
-    const wordBuckets = [
-      [0, 1, 2],                          // "The"
-      [4, 5, 6, 7, 8, 9, 10, 11, 12],     // "strongest"
-      [14, 15, 16, 17, 18, 19, 20, 21],   // "networks"
-      [23, 24, 25],                       // "are"
-      [27, 28, 29, 30, 31, 32, 33, 34, 35]// "invisible"
-    ]
+    const fullText = "The strongest networks are invisible."
+    const validIndices = []
+    for (let i = 0; i < fullText.length; i++) {
+      if (fullText[i] !== ' ' && fullText[i] !== '.') {
+        validIndices.push(i)
+      }
+    }
 
-    let lastWordIndex = -1
+    let lastIndex = -1
     let isGlitched = false
 
     const interval = setInterval(() => {
       if (isGlitched) {
-        // Return to 100% clean original text
+        // Revert back to original clean text
         setGlitchState({ index: -1, char: '0' })
         isGlitched = false
       } else {
-        // Pick a word that is NOT the same as the previous word (rotates across ALL words)
-        let wordIndex = Math.floor(Math.random() * wordBuckets.length)
-        if (wordIndex === lastWordIndex) {
-          wordIndex = (wordIndex + 1 + Math.floor(Math.random() * (wordBuckets.length - 1))) % wordBuckets.length
+        // Pick ANY random letter across the entire line
+        let randIdx = validIndices[Math.floor(Math.random() * validIndices.length)]
+        if (randIdx === lastIndex && validIndices.length > 1) {
+          randIdx = validIndices[Math.floor(Math.random() * validIndices.length)]
         }
-        lastWordIndex = wordIndex
+        lastIndex = randIdx
+        const randBit = Math.random() < 0.5 ? '0' : '1'
 
-        const bucket = wordBuckets[wordIndex]
-        const randomCharIdx = bucket[Math.floor(Math.random() * bucket.length)]
-        const randomBit = Math.random() < 0.5 ? '0' : '1'
-
-        setGlitchState({ index: randomCharIdx, char: randomBit })
+        setGlitchState({ index: randIdx, char: randBit })
         isGlitched = true
       }
     }, 240)
