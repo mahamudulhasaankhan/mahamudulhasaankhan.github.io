@@ -93,6 +93,53 @@ function MatrixRain() {
   )
 }
 
+// Binary Character Scramble / Hacker Glitch Heading (Inspired by raifkaya.nl)
+function GlitchHeading() {
+  const [prefix, setPrefix] = useState("The strongest networks are ")
+  const [highlight, setHighlight] = useState("invisible.")
+
+  useEffect(() => {
+    const fullText = "The strongest networks are invisible."
+    const prefixLen = "The strongest networks are ".length
+    let isGlitched = false
+
+    const interval = setInterval(() => {
+      if (isGlitched) {
+        setPrefix("The strongest networks are ")
+        setHighlight("invisible.")
+        isGlitched = false
+      } else {
+        const chars = [...fullText]
+        const validIndices = []
+        for (let i = 0; i < chars.length; i++) {
+          if (chars[i] !== ' ' && chars[i] !== '.') {
+            validIndices.push(i)
+          }
+        }
+        if (validIndices.length > 0) {
+          const randIndex = validIndices[Math.floor(Math.random() * validIndices.length)]
+          chars[randIndex] = Math.random() < 0.5 ? '0' : '1'
+          const newFull = chars.join('')
+          setPrefix(newFull.slice(0, prefixLen))
+          setHighlight(newFull.slice(prefixLen))
+          isGlitched = true
+        }
+      }
+    }, 280)
+
+    return () => clearInterval(interval)
+  }, [])
+
+  return (
+    <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight uppercase leading-[1.05]">
+      {prefix}
+      <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#d4ff3f] via-[#00f0ff] to-white">
+        {highlight}
+      </span>
+    </h1>
+  )
+}
+
 export default function App() {
   const [scrollProgress, setScrollProgress] = useState(0)
   const [activeSection, setActiveSection] = useState('')
@@ -676,9 +723,7 @@ round-trip min/avg/max/stddev = 0.584/0.603/0.628/0.017 ms`
               </div>
 
               <div className="space-y-4">
-                <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight uppercase leading-[1.05]">
-                  The strongest networks are <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#d4ff3f] via-[#00f0ff] to-white">invisible.</span>
-                </h1>
+                <GlitchHeading />
                 <p className="text-lg md:text-2xl text-[#9b9ba4] max-w-2xl leading-relaxed font-light">
                   Engineering carrier-grade routing, core-access resilience, and automated logging for mission-critical enterprise environments.
                 </p>
